@@ -27,7 +27,7 @@ endif()
 
 # ############
 # Define Project
-project(triqs_cthyb VERSION 3.3.0 LANGUAGES C CXX)
+project(triqs_cthyb VERSION 3.3.0 LANGUAGES CXX)
 get_directory_property(IS_SUBPROJECT PARENT_DIRECTORY)
 
 # ############
