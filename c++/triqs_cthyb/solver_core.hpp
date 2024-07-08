@@ -33,6 +33,8 @@
 #include "container_set.hpp"
 #include "parameters.hpp"
 
+#include "configuration.hpp"  
+
 namespace triqs_cthyb {
 
   /// Core class of the cthyb solver
@@ -43,7 +45,8 @@ namespace triqs_cthyb {
     gf_struct_t gf_struct; // Block structure of the Green function
     many_body_op_t _h_loc; // The local Hamiltonian = h_int + h0
     many_body_op_t _h_loc0; //noninteracting part of the local Hamiltonian
-    int n_iw, n_tau, n_l;
+    //int n_iw, n_tau, n_l;
+    int n_iw, n_tau, n_l, n_tau_delta;  
     bool delta_interface;
 
     std::vector<matrix_t> _density_matrix; // density matrix, when used in Norm mode
@@ -52,7 +55,9 @@ namespace triqs_cthyb {
     mc_weight_t _average_sign;             // average sign of the QMC
     double _average_order;                 // average perturbation order
     double _auto_corr_time;                // Auto-correlation time
+    double _update_time;                   
     int _solve_status;                     // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
+    configuration::oplist_t  _final_config;   
 
     // Single-particle Green's function containers
     std::optional<G_iw_t> _G0_iw; // Non-interacting Matsubara Green's function
@@ -149,9 +154,14 @@ namespace triqs_cthyb {
 
     /// Auto-correlation time
     double auto_corr_time() const { return _auto_corr_time; }
+    
+    /// Average update time
+    double update_time() const { return _update_time; } 
 
     /// Status of the ``solve()`` on exit.
     int solve_status() const { return _solve_status; }
+
+    configuration::oplist_t final_config() const { return _final_config; }  
 
     /// is cthyb compiled with support for complex hybridization?
     bool hybridisation_is_complex() const {

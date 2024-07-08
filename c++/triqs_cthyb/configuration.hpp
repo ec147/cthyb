@@ -70,6 +70,7 @@ namespace triqs_cthyb {
 
     double beta() const { return beta_; }
     int size() const { return oplist.size(); }
+    oplist_t get_oplist() const { return oplist; }  
 
     void insert(time_pt tau, op_desc op) { oplist.insert({tau, op}); }
     void replace(time_pt tau, op_desc op) { oplist[tau] = op; }
@@ -97,7 +98,7 @@ namespace triqs_cthyb {
         h5_write(tau_group, op.second);
       }
     }
-
+    
     long get_id() const { return id; } // Get the id of the current configuration
     void finalize() {
       id++;

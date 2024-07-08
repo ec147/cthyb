@@ -31,7 +31,6 @@ namespace triqs_cthyb {
     results.G_tau_accum = block_gf<imtime, G_target_t>({data.config.beta(), Fermion, n_tau}, gf_struct);
     G_tau.rebind(*results.G_tau_accum);
     G_tau() = 0.0;
-
     results.asymmetry_G_tau = block_gf{G_tau};
     asymmetry_G_tau.rebind(*results.asymmetry_G_tau);
   }
@@ -47,7 +46,7 @@ namespace triqs_cthyb {
         double dtau = double(y.first - x.first);
         this->G_tau[block_idx][closest_mesh_pt(dtau)](y.second, x.second) += val;
       })
-        ;
+        ; 
     }
   }
 

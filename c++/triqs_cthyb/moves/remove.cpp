@@ -23,21 +23,31 @@
 
 namespace triqs_cthyb {
 
-  histogram * move_remove_c_cdag::add_histo(std::string const &name, histo_map_t *histos) {
+  histogram * move_remove_c_cdag::add_histo(std::string const &name, histo_map_t *histos, int nbins) {
     if (!histos) return nullptr;
-    auto new_histo = histos->insert({name, {.0, config.beta(), 100}});
+    auto new_histo = histos->insert({name, {.0, config.beta(), nbins}});
     return &(new_histo.first->second);
   }
 
   move_remove_c_cdag::move_remove_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data, mc_tools::random_generator &rng,
-                     histo_map_t *histos)
+		     histo_map_t *histos, int nbins, std::vector<double> const &hist_insert, 
+		     std::vector<double> const &hist_remove, std::vector<time_pt> const &taus_bin, bool use_improved_sampling) 
      : data(data),
        config(data.config),
        rng(rng),
        block_index(block_index),
        block_size(block_size),
-       histo_proposed(add_histo("remove_length_proposed_" + block_name, histos)),
-       histo_accepted(add_histo("remove_length_accepted_" + block_name, histos)) {}
+       histo_proposed(add_histo("remove_length_proposed_" + block_name, histos, nbins)),
+       histo_accepted(add_histo("remove_length_accepted_" + block_name, histos, nbins)),
+       hist_insert(hist_insert),
+       hist_remove(hist_remove),
+       step_i(time_pt::Nmax / (nbins - 1)),
+       use_improved_sampling(use_improved_sampling),
+       taus_bin(taus_bin),
+       t1(time_pt(1, config.beta())),
+       Nmax(30) 	{
+         bins.reserve(Nmax);
+       }
 
   mc_weight_t move_remove_c_cdag::attempt() {
 
@@ -63,7 +73,61 @@ namespace triqs_cthyb {
 
     // now mark 2 nodes for deletion
     tau1 = data.imp_trace.try_delete(num_c, block_index, false);
-    tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
+    double fac = 1.;
+    if (use_improved_sampling) {
+      // choose the creation operator to remove, weighted by probability 
+      // hist_remove[bin(tau2-tau1)] / sum_i(hist_remove(bin(tau_i - tau1)))
+      double s = 0;   // normalization constant sum_i(hist_remove(bin(tau_i - tau1)))
+      // need to call try_delete for each creation operator in order to have the binary tree index
+      int nbins = hist_insert.size(); 
+      if (det_size > Nmax) {
+        Nmax *= 2;
+	bins.reserve(Nmax);
+      }
+      bins.resize(det_size);
+      for (int i = 0; i < det_size; ++i) {
+	int ind;
+        time_pt dtau_r = data.imp_trace.try_delete(i, block_index, true) - tau1;
+        if (dtau_r < taus_bin[1])
+          ind = 0;
+        else if (dtau_r >= taus_bin[nbins-1])
+          ind = nbins-1;
+        else
+          ind = (floor_div(dtau_r, t1) - step_i / 2) / step_i + 1;
+        bins[i]=ind;
+        s += hist_remove[ind];	
+      }
+      // draw a uniform variable on [0,1] 
+      double ran  = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1);
+      // choose the creation operator
+      double csum = 0;
+      for (int i = 0; i < det_size; ++i) {
+        csum += hist_remove[bins[i]] / s;
+	if (csum >= ran || i == (nbins-1)) {
+          num_c_dag = i;
+	  break;
+	}
+      }
+     
+      data.imp_trace.cancel_delete();
+      tau1 = data.imp_trace.try_delete(num_c, block_index, false);
+      tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
+
+      // compute the probability of proposing the current config from the trial one
+      // this is simply hist_insert[bin(tau1-tau2)] (since for the insert move, dtau=t_c - t_cdag)
+      time_pt dtau_i = tau1 - tau2;
+      int ibin;
+      if (dtau_i < taus_bin[1])
+        ibin = 0;
+      else if (dtau_i >= taus_bin[nbins-1])
+        ibin = nbins-1;
+      else
+        ibin = (floor_div(dtau_i, t1) - step_i / 2) / step_i + 1;
+
+      fac = double(det_size) * hist_remove[bins[num_c_dag]] / (s * config.beta() * hist_insert[ibin] );
+    }
+    else
+      tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
 
     // record the length of the proposed removal
     dtau = double(tau2 - tau1);
@@ -73,7 +137,8 @@ namespace triqs_cthyb {
 
     // proposition probability
     auto t_ratio = std::pow(block_size * config.beta() / double(det_size), 2); // Size of the det before the try_delete!
-
+    if (use_improved_sampling) t_ratio *= fac;  
+     
     // For quick abandon
     double random_number = rng.preview();
     if (random_number == 0.0) return 0;
@@ -117,6 +182,12 @@ namespace triqs_cthyb {
   }
 
   mc_weight_t move_remove_c_cdag::accept() {
+
+    data.updated = true;
+    time_pt tau_min = std::min(tau1,tau2);
+    time_pt tau_max = std::max(tau1,tau2);
+    if (tau_min < data.imp_trace.min_tau) data.imp_trace.min_tau = tau_min;
+    if (tau_max > data.imp_trace.max_tau) data.imp_trace.max_tau = tau_max;
 
     // remove from the tree
     data.imp_trace.confirm_delete();

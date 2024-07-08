@@ -25,6 +25,7 @@
 
 #include "./config.hpp"
 #include "./types.hpp"
+#include "./configuration.hpp" 
 
 namespace triqs_cthyb {
 
@@ -51,6 +52,9 @@ namespace triqs_cthyb {
 
     /// Use Delta_tau and h_loc0 as input instead of G0_iw?
     bool delta_interface = false;
+
+    /// Number of tau points for delta<imtime, matrix_valued>
+    int n_tau_delta = -1;   
 
     /// Write constr_parameters_t to hdf5
     friend void h5_write(h5::group h5group, std::string subgroup_name, constr_parameters_t const &sp);
@@ -190,6 +194,21 @@ namespace triqs_cthyb {
     /// Measure the reduced impurity density matrix?
     bool measure_density_matrix = false;
 
+    /// Use time invariance for the measurement of the density matrix?
+    bool time_invariance = false;   
+
+    /// Initial configuration
+    configuration::oplist_t initial_config = {};  
+
+    /// Number of bins for the histograms
+    int nbins_histo = 100; 
+
+    /// Histogram for insert moves
+    std::vector<std::vector<double>> hist_insert;   
+
+    /// Histogram for remove moves
+    std::vector<std::vector<double>> hist_remove; 
+
     /// Use the norm of the density matrix in the weight if true, otherwise use Trace
     bool use_norm_as_weight = false;
 
@@ -228,9 +247,9 @@ namespace triqs_cthyb {
     /// Bound for the determinant matrix being singular, abs(det) > singular_threshold. If <0, it is !isnormal(abs(det))
     double det_singular_threshold = -1;
 
-    solve_parameters_t() {}
+    solve_parameters_t() {}  
 
-    solve_parameters_t(many_body_op_t h_int, long n_cycles) : h_int(h_int), n_cycles(n_cycles) {}
+    solve_parameters_t(many_body_op_t h_int, long n_cycles) : h_int(h_int), n_cycles(n_cycles) {}  
 
     /// Write solve_parameters_t to hdf5
     friend void h5_write(h5::group h5group, std::string subgroup_name, solve_parameters_t const &sp);
