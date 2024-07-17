@@ -258,7 +258,7 @@ namespace triqs_cthyb {
     if (params.verbosity >= 2)
       std::cout << "Found " << h_diag.n_subspaces() << " subspaces." << std::endl;
 
-    //if (params.performance_analysis) std::ofstream("impurity_blocks.dat") << h_diag;  
+    if (params.performance_analysis && mpi::communicator().rank()==0) std::ofstream("impurity_blocks.dat") << h_diag;  
 
     // If one is interested only in the atomic problem
     if (params.n_warmup_cycles == 0 && params.n_cycles == 0) {
