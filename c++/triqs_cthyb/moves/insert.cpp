@@ -31,8 +31,8 @@ namespace triqs_cthyb {
 
   move_insert_c_cdag::move_insert_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data,
 					 mc_tools::random_generator &rng, histo_map_t *histos, int nbins, 
-					 std::vector<double> const &hist_insert, std::vector<double> const &hist_remove, 
-					 std::vector<time_pt> const &taus_bin, bool use_improved_sampling)
+					 std::vector<double> const *hist_ins, std::vector<double> const *hist_rem, 
+					 std::vector<time_pt> const *taus_bins, bool use_improved_sampling)
      : data(data),
        config(data.config),
        rng(rng),
@@ -40,12 +40,12 @@ namespace triqs_cthyb {
        block_size(block_size),
        histo_proposed(add_histo("insert_length_proposed_" + block_name, histos, nbins)),
        histo_accepted(add_histo("insert_length_accepted_" + block_name, histos, nbins)),
-       hist_insert(hist_insert),
-       hist_remove(hist_remove),
+       hist_insert(*hist_ins),
+       hist_remove(*hist_rem),
        step_i(time_pt::Nmax / (nbins - 1)),
        step_d(config.beta() / double(nbins - 1)),
        use_improved_sampling(use_improved_sampling),
-       taus_bin(taus_bin),
+       taus_bin(*taus_bins),
        t1(time_pt(1, config.beta()))	{}   
 
   mc_weight_t move_insert_c_cdag::attempt() {
