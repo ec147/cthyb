@@ -309,6 +309,10 @@ c.add_property(name = "auto_corr_time",
                getter = cfunction("double auto_corr_time ()"),
                doc = r"""Auto-correlation time""")
 
+c.add_property(name = "update_time",
+               getter = cfunction("double update_time ()"),
+               doc = r"""Average update time""")			   
+			   
 c.add_property(name = "solve_status",
                getter = cfunction("int solve_status ()"),
                doc = r"""status of the ``solve()`` on exit.""")

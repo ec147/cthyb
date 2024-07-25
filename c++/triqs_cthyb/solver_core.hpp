@@ -52,6 +52,7 @@ namespace triqs_cthyb {
     mc_weight_t _average_sign;             // average sign of the QMC
     double _average_order;                 // average perturbation order
     double _auto_corr_time;                // Auto-correlation time
+    double _update_time;                   // average update time
     int _solve_status;                     // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
 
     // Single-particle Green's function containers
@@ -149,6 +150,9 @@ namespace triqs_cthyb {
 
     /// Auto-correlation time
     double auto_corr_time() const { return _auto_corr_time; }
+	
+	/// Average update time
+    double update_time() const { return _update_time; } 
 
     /// Status of the ``solve()`` on exit.
     int solve_status() const { return _solve_status; }
@@ -192,6 +196,7 @@ namespace triqs_cthyb {
       h5_write(grp, "average_sign", s._average_sign);
       h5_write(grp, "average_order", s._average_order);
       h5_write(grp, "auto_corr_time", s._auto_corr_time);
+      h5_write(grp, "update_time", s._update_time);
       h5_write(grp, "solve_status", s._solve_status);
       h5_write(grp, "Delta_infty_vec", s.Delta_infty_vec);
     }
@@ -213,6 +218,7 @@ namespace triqs_cthyb {
       h5::try_read(grp, "average_sign", s._average_sign);
       h5::try_read(grp, "average_order", s._average_order);
       h5::try_read(grp, "auto_corr_time", s._auto_corr_time);
+      h5::try_read(grp, "update_time", s._update_time);
       h5::try_read(grp, "solve_status", s._solve_status);
       h5::try_read(grp, "Delta_infty_vec", s.Delta_infty_vec);
 

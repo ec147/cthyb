@@ -205,6 +205,8 @@ namespace triqs_cthyb {
   }
 
   mc_weight_t move_shift_operator::accept() {
+	  
+    data.updated = true;
 
     // Update the tree
     data.imp_trace.confirm_shift();

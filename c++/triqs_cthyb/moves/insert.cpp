@@ -141,6 +141,8 @@ namespace triqs_cthyb {
   }
 
   mc_weight_t move_insert_c_cdag::accept() {
+	  
+    data.updated = true;
 
     // insert in the tree
     data.imp_trace.confirm_insert();
