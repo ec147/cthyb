@@ -49,6 +49,9 @@ namespace triqs_cthyb {
     /// Number of Legendre polynomials for gf<legendre, matrix_valued>
     int n_l = 50;
 
+    // Number of tau points for Delta_tau<imtime, matrix_valued> (-1 is the convention for n_tau_delta = n_tau)
+    int n_tau_delta = -1;
+
     /// Use Delta_tau and h_loc0 as input instead of G0_iw?
     bool delta_interface = false;
 

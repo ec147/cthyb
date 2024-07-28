@@ -53,7 +53,28 @@ namespace triqs_cthyb {
       delta_block_adaptor &operator=(delta_block_adaptor &&) = default;
 
       det_scalar_t operator()(std::pair<time_pt, int> const &x, std::pair<time_pt, int> const &y) const {
-        det_scalar_t res = delta_block[closest_mesh_pt(double(x.first - y.first))](x.second, y.second);
+        double dtau = double(x.first - y.first);
+        auto ind = delta_block.mesh().to_data_index(closest_mesh_pt(dtau));
+        det_scalar_t res, ya, yb;
+        double xa, xb;
+        bool use_linear_interpolation = false;
+        if (use_linear_interpolation) {
+          xa = delta_block.mesh().to_value(ind);
+          ya = delta_block[ind](x.second, y.second);
+          if (dtau >= xa) {
+            xb = delta_block.mesh().to_value(ind+1);
+            yb = delta_block[ind+1](x.second, y.second);
+          }
+          else {
+            xb = xa;
+            xa = delta_block.mesh().to_value(ind-1);
+            yb = ya;
+            ya = delta_block[ind-1](x.second, y.second);
+          }
+          res = ya + (dtau - xa) * (yb - ya) / (xb - xa);
+        }
+        else
+          res = delta_block[ind](x.second, y.second);
         return (x.first >= y.first ? res : -res); // x,y first are time_pt, wrapping is automatic in the - operation, but need to
                                                   // compute the sign
       }

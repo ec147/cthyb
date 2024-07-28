@@ -43,7 +43,7 @@ namespace triqs_cthyb {
     gf_struct_t gf_struct; // Block structure of the Green function
     many_body_op_t _h_loc; // The local Hamiltonian = h_int + h0
     many_body_op_t _h_loc0; //noninteracting part of the local Hamiltonian
-    int n_iw, n_tau, n_l;
+    int n_iw, n_tau, n_l, n_tau_delta;
     bool delta_interface;
 
     std::vector<matrix_t> _density_matrix; // density matrix, when used in Norm mode
