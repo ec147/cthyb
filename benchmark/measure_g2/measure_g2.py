@@ -69,7 +69,7 @@ mkind = get_mkind(True, None)
 H = h_int_kanamori(spin_names, orb_names,
                    np.array([[0, U-3*J], [U-3*J, 0]]),
                    np.array([[U, U-2*J], [U-2*J, U]]),
-                   J, True)
+                   J, off_diag=True)
 
 mpi.report("Constructing the solver...")
 
