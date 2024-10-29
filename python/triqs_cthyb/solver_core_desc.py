@@ -137,6 +137,8 @@ c.add_member(c_name = "constr_parameters",
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
 | n_l             | int                     | 50      | Number of Legendre polynomials for gf<legendre, matrix_valued>  |
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
+| n_tau_delta     | int                     | -1      | Number of tau points for Delta_tau<imtime, matrix_valued>       |
++-----------------+-------------------------+---------+-----------------------------------------------------------------+
 | delta_interface | bool                    | false   | Use Delta_tau and h_loc0 as input instead of G0_iw?             |
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
 """)
@@ -232,6 +234,12 @@ c.add_member(c_name = "solve_parameters",
 | performance_analysis          | bool                                                     | false                         | Analyse performance of trace computation with histograms (developers only)?                                       |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | proposal_prob                 | dict(str:float)                                          | {}                            | Operator insertion/removal probabilities for different blocks                                                     |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| nbins_histo                   | int                                                      | 100                           | Number of bins in hist_insert and hist_remove                                                                     |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| hist_insert                   | dict(list(double))                                       | {}                            | Proposal distribution for the insert move                                                                         |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| hist_remove                   | dict(list(double))                                       | {}                            | Proposal distribution for the remove move                                                                         |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | move_global                   | dict(str : dict(indices : indices))                      | {}                            | List of global moves (with their names). Each move is specified with an index substitution dictionary.            |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
@@ -560,6 +568,25 @@ c.add_member(c_name = "proposal_prob",
      type: dict(str:float)
      default: {}""")
 
+c.add_member(c_name = "nbins_histo",
+             c_type = "int",
+             initializer = """ 100 """,
+             doc = r"""Number of bins in hist_insert and hist_remove""")
+
+c.add_member(c_name = "hist_insert",
+             c_type = "std::map<std::string, std::vector<double>>",
+             initializer = """ {} """,
+             doc = r"""Proposal distribution for the insert move
+     type: dict(list(double))
+     default: {}""")
+
+c.add_member(c_name = "hist_remove",
+             c_type = "std::map<std::string, std::vector<double>>",
+             initializer = """ {} """,
+             doc = r"""Proposal distribution for the remove move
+     type: dict(list(double))
+     default: {}""")
+
 c.add_member(c_name = "move_global",
              c_type = "std::map<std::string, indices_map_t>",
              initializer = """ {} """,
@@ -644,6 +671,11 @@ c.add_member(c_name = "n_l",
              c_type = "int",
              initializer = """ 50 """,
              doc = r"""Number of Legendre polynomials for gf<legendre, matrix_valued>""")
+
+c.add_member(c_name = "n_tau_delta",
+             c_type = "int",
+             initializer = """ -1 """,
+             doc = r"""Number of tau points for Delta_tau<imtime, matrix_valued>""")
 
 c.add_member(c_name = "delta_interface",
              c_type = "bool",

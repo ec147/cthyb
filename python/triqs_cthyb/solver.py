@@ -34,7 +34,7 @@ from .util import orbital_occupations
 
 class Solver(SolverCore):
 
-    def __init__(self, beta, gf_struct, n_iw=1025, n_tau=10001, n_l=30, delta_interface = False):
+    def __init__(self, beta, gf_struct, n_iw=1025, n_tau=10001, n_l=30, n_tau_delta=-1, delta_interface = False):
         """
         Initialise the solver.
 
@@ -53,6 +53,8 @@ class Solver(SolverCore):
                Number of imaginary time points used for the Green's functions.
         n_l : integer, optional
              Number of legendre polynomials to use in accumulations of the Green's functions.
+        n_tau_delta : integer, optional
+             Number of imaginary time points used for the hybridization
         delta_interface: bool, optional
             Are Delta_tau and Delta_infty provided as input instead of G0_iw?
         """
@@ -61,7 +63,7 @@ class Solver(SolverCore):
 
         # Initialise the core solver
         SolverCore.__init__(self, beta=beta, gf_struct=gf_struct,
-                            n_iw=n_iw, n_tau=n_tau, n_l=n_l, delta_interface = delta_interface)
+                            n_iw=n_iw, n_tau=n_tau, n_l=n_l, n_tau_delta=n_tau_delta, delta_interface = delta_interface)
 
         mesh = MeshImFreq(beta = beta, S="Fermion", n_max = n_iw)
         self.Sigma_iw = BlockGf(mesh = mesh, gf_struct = gf_struct)
@@ -72,6 +74,7 @@ class Solver(SolverCore):
         self.gf_struct = gf_struct
         self.n_iw = n_iw
         self.n_tau = n_tau
+        self.n_tau_delta = n_tau_delta
         self.delta_interface = delta_interface
         self.G_moments = None
         self.Sigma_moments = None

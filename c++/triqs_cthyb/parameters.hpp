@@ -50,6 +50,9 @@ namespace triqs_cthyb {
     /// Number of Legendre polynomials for gf<legendre, matrix_valued>
     int n_l = 50;
 
+    // Number of tau points for Delta_tau<imtime, matrix_valued> (-1 is the convention for n_tau_delta = n_tau)
+    int n_tau_delta = -1;
+
     /// Use Delta_tau and h_loc0 as input instead of G0_iw?
     bool delta_interface = false;
 
@@ -204,6 +207,15 @@ namespace triqs_cthyb {
     /// type: dict(str:float)
     /// default: {}
     std::map<std::string, double> proposal_prob = {};
+
+    /// Number of bins for the histograms
+    int nbins_histo = 100;
+
+    /// Proposal distribution for insert move
+    std::map<std::string, std::vector<double>> hist_insert = {};
+
+    /// Proposal distribution for remove move
+    std::map<std::string, std::vector<double>> hist_remove = {};
 
     /// List of global moves (with their names).
     /// Each move is specified with an index substitution dictionary.
