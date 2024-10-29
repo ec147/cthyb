@@ -167,6 +167,8 @@ namespace triqs_cthyb {
 
   mc_weight_t move_global::accept() {
 
+    data.updated = true;
+  
     for (auto const &o : updated_ops) data.config.replace(o.first, o.second);
     config.finalize();
 

@@ -41,6 +41,8 @@ namespace triqs_cthyb {
     mutable impurity_trace imp_trace;            // Calculator of the trace
     std::vector<int> n_inner;
     block_gf<imtime, delta_target_t> delta; // Hybridization function
+    bool updated;
+    double n_acc;
 
     /// This callable object adapts the Delta function for the call of the det.
     struct delta_block_adaptor {
@@ -97,6 +99,8 @@ namespace triqs_cthyb {
          imp_trace(beta, h_diag, histo_map, p.use_norm_as_weight, p.measure_density_matrix, p.performance_analysis),
          n_inner(n_inner),
          delta(map([](gf_const_view<imtime> d) { return real(d); }, delta)),
+         updated(false),
+         n_acc(0.),
          current_sign(1),
          old_sign(1) {
       config.clear();

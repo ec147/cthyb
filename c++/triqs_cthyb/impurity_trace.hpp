@@ -53,7 +53,7 @@ namespace triqs_cthyb {
       cancel_insert_impl(); // in case of an exception, we need to remove any trial nodes before cleaning the tree!
     }
 
-    std::pair<h_scalar_t, h_scalar_t> compute(double p_yee = -1, double u_yee = 0);
+    std::pair<h_scalar_t, h_scalar_t> compute(double p_yee = -1, double u_yee = 0, bool meas_den = false);
 
     // ------- Configuration and h_loc data ----------------
 

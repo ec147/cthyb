@@ -254,7 +254,7 @@ namespace triqs_cthyb {
 
   //-------- Compute the full trace ------------------------------------------
   // Returns MC atomic weight and reweighting = trace/(atomic weight)
-  std::pair<h_scalar_t, h_scalar_t> impurity_trace::compute(double p_yee, double u_yee) {
+  std::pair<h_scalar_t, h_scalar_t> impurity_trace::compute(double p_yee, double u_yee, bool meas_den) {
 
     double epsilon         = 1.e-15; // Machine precision
     auto log_epsilon0      = -std::log(1.e-15);
@@ -264,7 +264,7 @@ namespace triqs_cthyb {
     // simplifies later code
     if (tree_size == 0) {
       if (use_norm_as_weight) {
-        density_matrix = atomic_rho;
+        if (meas_den) density_matrix = atomic_rho;
         return {atomic_norm, atomic_z / atomic_norm};
       } else
         return {atomic_z, 1};
@@ -329,7 +329,7 @@ namespace triqs_cthyb {
     double norm_trace_sq = 0, trace_abs = 0;
 
     // Put density_matrix to "not recomputed"
-    for (int bl = 0; bl < n_blocks; ++bl) density_matrix[bl].is_valid = false;
+    if (meas_den) for (int bl = 0; bl < n_blocks; ++bl) density_matrix[bl].is_valid = false;
 
     auto trace_contrib_block = std::vector<std::pair<double, int>>{}; //FIXME complex -- can histos handle this?
 
@@ -382,13 +382,21 @@ namespace triqs_cthyb {
 
       if (use_norm_as_weight) { // else we are not allowed to compute this matrix, may make no sense
         // recompute the density matrix
-        density_matrix[block_index].is_valid = true;
         double norm_trace_sq_partial         = 0;
-        auto &mat                            = density_matrix[block_index].mat;
+        matrix_t M = {};
+        matrix_t *mat;
+        if (meas_den) {
+          mat = &density_matrix[block_index].mat;
+          density_matrix[block_index].is_valid = true;
+        }
+        else {
+          M = matrix_t(dim,dim);
+          mat = &M;
+        }
         for (int u = 0; u < dim; ++u) {
           for (int v = 0; v < dim; ++v) {
-            mat(u, v) = b_mat.second(u, v) * std::exp(-dtau_beta * get_block_eigenval(block_index, u) - dtau_0 * get_block_eigenval(block_index, v));
-            double xx = std::abs(mat(u, v));
+            (*mat)(u, v) = b_mat.second(u, v) * std::exp(-dtau_beta * get_block_eigenval(block_index, u) - dtau_0 * get_block_eigenval(block_index, v));
+            double xx = std::abs((*mat)(u, v));
             norm_trace_sq_partial += xx * xx;
           }
         }
@@ -396,7 +404,7 @@ namespace triqs_cthyb {
         // internal check
         if (std::abs(trace_partial) - 1.0000001 * std::sqrt(norm_trace_sq_partial) * get_block_dim(block_index) > 1.e-15)
           TRIQS_RUNTIME_ERROR << "|trace| > dim * norm" << trace_partial << " " << std::sqrt(norm_trace_sq_partial) << "  " << trace_abs;
-        auto dev = std::abs(trace_partial - trace(mat));
+        auto dev = std::abs(trace_partial - trace(*mat));
         if (dev > 1.e-14) TRIQS_RUNTIME_ERROR << "Internal error : trace and density mismatch. Deviation: " << dev;
       }
 

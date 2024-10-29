@@ -44,6 +44,7 @@
 #include "./measures/average_sign.hpp"
 #include "./measures/average_order.hpp"
 #include "./measures/auto_corr_time.hpp"
+#include "./measures/update_time.hpp" 
 #ifdef CTHYB_G2_NFFT
 #include "./measures/G2_tau.hpp"
 #include "./measures/G2_iw.hpp"
@@ -475,6 +476,7 @@ namespace triqs_cthyb {
     qmc.add_measure(measure_average_sign{data, _average_sign}, "Average sign");
     qmc.add_measure(measure_average_order{data, _average_order}, "Average order");
     qmc.add_measure(measure_auto_corr_time{data, _auto_corr_time}, "Auto-correlation time");
+    qmc.add_measure(measure_update_time{data, _update_time}, "Update time");  // Careful, this needs to be added last
 
     // --------------------------------------------------------------------------
 
@@ -495,6 +497,7 @@ namespace triqs_cthyb {
       std::cout << "Average sign: " << _average_sign << std::endl;
       std::cout << "Average order: " << _average_order << std::endl;
       std::cout << "Auto-correlation time: " << _auto_corr_time << std::endl;
+      std::cout << "Average update time: " << _update_time << std::endl; 
     }
 
     // Copy local (real or complex) G_tau back to complex G_tau

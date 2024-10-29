@@ -184,6 +184,8 @@ namespace triqs_cthyb {
   }
 
   mc_weight_t move_remove_c_cdag::accept() {
+	  
+    data.updated = true;
 
     // remove from the tree
     data.imp_trace.confirm_delete();

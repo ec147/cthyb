@@ -35,25 +35,31 @@ namespace triqs_cthyb {
   // --------------------
 
   void measure_density_matrix::accumulate(mc_weight_t s) {
-    // we assume here that we are in "Norm" mode, i.e. qmc weight is norm, not trace
-
-    // We need to recompute since the density_matrix in the trace is changed at each computatation,
-    // in particular at the last failed attempt.
-    // So we need to compute it, without any Yee threshold.
-    data.imp_trace.compute();
-    z += s * data.atomic_reweighting;
-    s /= data.atomic_weight; // accumulate matrix / norm since weight is norm * det
-
-    // Careful: there is no reweighting factor here!
-    int size = block_dm.size();
-    for (int i = 0; i < size; ++i)
-      if (data.imp_trace.get_density_matrix()[i].is_valid) { block_dm[i] += s * data.imp_trace.get_density_matrix()[i].mat; }
+    if (data.updated) {
+      if (!flag) {
+        z += data.n_acc * old_z;
+        mc_weight_t s_temp = data.n_acc * old_s;
+        int size = block_dm.size();
+        for (int i = 0; i < size; ++i) 
+          if (data.imp_trace.get_density_matrix()[i].is_valid) { block_dm[i] += s_temp * data.imp_trace.get_density_matrix()[i].mat; }
+      }	
+      data.imp_trace.compute(-1,0,true);
+      old_z = s * data.atomic_reweighting;
+      old_s = s / data.atomic_weight;
+    }
+    flag = false;
   }
 
   // ---------------------------------------------
 
   void measure_density_matrix::collect_results(mpi::communicator const &c) {
-
+    
+    z += data.n_acc * old_z;
+    mc_weight_t s_temp = data.n_acc * old_s;
+    int size = block_dm.size();
+    for (int i = 0; i < size; ++i)
+      if (data.imp_trace.get_density_matrix()[i].is_valid) { block_dm[i] += s_temp * data.imp_trace.get_density_matrix()[i].mat; }
+  
     z                          = mpi::all_reduce(z, c);
     block_dm                   = mpi::all_reduce(block_dm, c);
     for (auto &b : block_dm){
