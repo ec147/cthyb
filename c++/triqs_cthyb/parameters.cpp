@@ -132,6 +132,10 @@ namespace triqs_cthyb {
     h5_write(grp, "performance_analysis", sp.performance_analysis);
     h5_write(grp, "proposal_prob", sp.proposal_prob);
 
+    h5_write(grp, "nbins_histo", sp.nbins_histo);
+    h5_write(grp, "hist_insert", sp.hist_insert);
+    h5_write(grp, "hist_remove", sp.hist_remove);
+
     //h5_write(grp, "move_global", sp.move_global);
     if( sp.move_global.size() != 0 )
       TRIQS_RUNTIME_ERROR << "Error serailizing: CTHYB solve_parameters, can not serialize the global moves data type.";
@@ -198,6 +202,10 @@ namespace triqs_cthyb {
     h5_read(grp, "use_norm_as_weight", sp.use_norm_as_weight);
     h5_read(grp, "performance_analysis", sp.performance_analysis);
     h5_read(grp, "proposal_prob", sp.proposal_prob);
+
+    h5_read(grp, "nbins_histo", sp.nbins_histo);
+    h5_read(grp, "hist_insert", sp.hist_insert);
+    h5_read(grp, "hist_remove", sp.hist_remove);
 
     //h5_read(grp, "move_global", sp.move_global);
     if( grp.has_key("move_global") )

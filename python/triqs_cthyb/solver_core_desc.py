@@ -233,6 +233,12 @@ c.add_member(c_name = "solve_parameters",
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | proposal_prob                 | dict(str:float)                                          | {}                            | Operator insertion/removal probabilities for different blocks                                                     |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| nbins_histo                   | int                                                      | 100                           | Number of bins in hist_insert and hist_remove                                                                     |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| hist_insert                   | dict(list(double))                                       | {}                            | Proposal distribution for the insert move                                                                         |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| hist_remove                   | dict(list(double))                                       | {}                            | Proposal distribution for the remove move                                                                         |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | move_global                   | dict(str : dict(indices : indices))                      | {}                            | List of global moves (with their names). Each move is specified with an index substitution dictionary.            |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | move_global_prob              | double                                                   | 0.05                          | Overall probability of the global moves                                                                           |
@@ -549,6 +555,25 @@ c.add_member(c_name = "proposal_prob",
              initializer = """ {} """,
              doc = r"""Operator insertion/removal probabilities for different blocks
      type: dict(str:float)
+     default: {}""")
+
+c.add_member(c_name = "nbins_histo",
+             c_type = "int",
+             initializer = """ 100 """,
+             doc = r"""Number of bins in hist_insert and hist_remove""")
+
+c.add_member(c_name = "hist_insert",
+             c_type = "std::map<std::string, std::vector<double>>",
+             initializer = """ {} """,
+             doc = r"""Proposal distribution for the insert move
+     type: dict(list(double))
+     default: {}""")
+
+c.add_member(c_name = "hist_remove",
+             c_type = "std::map<std::string, std::vector<double>>",
+             initializer = """ {} """,
+             doc = r"""Proposal distribution for the remove move
+     type: dict(list(double))
      default: {}""")
 
 c.add_member(c_name = "move_global",

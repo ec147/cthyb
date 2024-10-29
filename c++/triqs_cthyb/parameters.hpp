@@ -204,6 +204,15 @@ namespace triqs_cthyb {
     /// default: {}
     std::map<std::string, double> proposal_prob = {};
 
+    /// Number of bins for the histograms
+    int nbins_histo = 100;
+
+    /// Proposal distribution for insert move
+    std::map<std::string, std::vector<double>> hist_insert = {};
+
+    /// Proposal distribution for remove move
+    std::map<std::string, std::vector<double>> hist_remove = {};
+
     /// List of global moves (with their names).
     /// Each move is specified with an index substitution dictionary.
     /// type: dict(str : dict(indices : indices))
