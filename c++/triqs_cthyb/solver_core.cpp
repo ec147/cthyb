@@ -44,6 +44,7 @@
 #include "./measures/average_sign.hpp"
 #include "./measures/average_order.hpp"
 #include "./measures/auto_corr_time.hpp"
+#include "./measures/update_time.hpp" 
 #ifdef CTHYB_G2_NFFT
 #include "./measures/G2_tau.hpp"
 #include "./measures/G2_iw.hpp"
@@ -61,16 +62,19 @@ namespace triqs_cthyb {
   };
 
   solver_core::solver_core(constr_parameters_t const &p)
-     : beta(p.beta), gf_struct(p.gf_struct), n_iw(p.n_iw), n_tau(p.n_tau), n_l(p.n_l), delta_interface(p.delta_interface), constr_parameters(p) {
+     : beta(p.beta), gf_struct(p.gf_struct), n_iw(p.n_iw), n_tau(p.n_tau), n_l(p.n_l), n_tau_delta(p.n_tau_delta),
+       delta_interface(p.delta_interface), _configuration(p.beta), constr_parameters(p) {
 
-    if (p.n_tau < 2 * p.n_iw)
+    if (n_tau_delta == -1) n_tau_delta = n_tau;
+
+    if (n_tau_delta < 2 * p.n_iw && !delta_interface)
       TRIQS_RUNTIME_ERROR
          << "Must use as least twice as many tau points as Matsubara frequencies: n_iw = " << p.n_iw
-         << " but n_tau = " << p.n_tau << ".";
+         << " but n_tau_delta = " << n_tau_delta << ".";
 
     // Allocate single particle greens functions
     if (not delta_interface) _G0_iw = block_gf<imfreq>({beta, Fermion, n_iw}, gf_struct);
-    _Delta_tau = block_gf<imtime>({beta, Fermion, n_tau}, gf_struct);
+    _Delta_tau = block_gf<imtime>({beta, Fermion, n_tau_delta}, gf_struct);
   }
 
   /// -------------------------------------------------------------------------------------------
@@ -253,7 +257,7 @@ namespace triqs_cthyb {
     if (params.verbosity >= 2)
       std::cout << "Found " << h_diag.n_subspaces() << " subspaces." << std::endl;
 
-    if (params.performance_analysis) std::ofstream("impurity_blocks.dat") << h_diag;
+    if (params.performance_analysis && mpi::communicator().rank()==0) std::ofstream("impurity_blocks.dat") << h_diag;
 
     // If one is interested only in the atomic problem
     if (params.n_warmup_cycles == 0 && params.n_cycles == 0) {
@@ -262,7 +266,7 @@ namespace triqs_cthyb {
     }
 
     // Initialise Monte Carlo quantities
-    qmc_data data(beta, params, h_diag, linindex, _Delta_tau, n_inner, histo_map);
+    qmc_data data(beta, params, h_diag, linindex, _Delta_tau, n_inner, histo_map, _configuration);
     auto qmc =
        mc_tools::mc_generic<mc_weight_t>(params.random_name, params.random_seed, params.verbosity);
 
@@ -281,15 +285,59 @@ namespace triqs_cthyb {
       auto f = params.proposal_prob.find(block_name);
       return (f != params.proposal_prob.end() ? f->second : 1.0);
     };
+    auto get_hist = [](std::map<std::string, std::vector<double>> &map, std::string const &block_name) {
+      auto f = map.find(block_name);
+      return (f != map.end() ? &f->second : nullptr);
+    };
+
+    bool use_improved_sampling = true;
+    std::vector<time_pt> taus_bin;
+    if (params.hist_insert.empty() && params.hist_remove.empty()) use_improved_sampling = false;
+    if (use_improved_sampling) {
+      if (params.hist_insert.size() != params.hist_remove.size() || params.hist_insert.size() != _Delta_tau.size())
+        TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert and hist_remove: the first dimension should be equal " <<
+        "to the number of blocks in gf_struct";
+      taus_bin = std::vector<time_pt>(params.nbins_histo + 1); // vector list of the time_pt of each bin
+      // converts bin step into uint64
+      uint64_t step = time_pt::Nmax / (params.nbins_histo - 1); // this is floored, so this ensures that the sum of all bin steps
+      // does not overshoot Nmax
+      time_pt step_t = time_pt(step, beta);
+      taus_bin[0] = time_pt(0, beta);
+      for (int i = 1; i < params.nbins_histo; ++i) {
+        if (i==1)
+          taus_bin[i] = time_pt(step / 2, beta);  // first bin is half-sized
+        else
+          taus_bin[i] = taus_bin[i-1] + step_t;
+      }
+      taus_bin[params.nbins_histo] = time_pt(time_pt::Nmax, beta);  // make sure the last tau point exactly reaches beta
+    }
+    std::vector<time_pt> *taus_bins = use_improved_sampling ? &taus_bin : nullptr;
 
     for (size_t block = 0; block < _Delta_tau.size(); ++block) {
       int block_size         = _Delta_tau[block].data().shape()[1];
       auto const &block_name = delta_names[block];
       double prop_prob       = get_prob_prop(block_name);
-      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map),
-                  "Insert Delta_" + block_name, prop_prob);
-      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map),
-                  "Remove Delta_" + block_name, prop_prob);
+      std::vector<double> *hist_ins = use_improved_sampling ? get_hist(params.hist_insert,block_name) : nullptr;
+      std::vector<double> *hist_rem = use_improved_sampling ? get_hist(params.hist_remove,block_name) : nullptr;
+      if (use_improved_sampling) {
+        if (hist_ins->size() != hist_rem->size() || hist_ins->size() != params.nbins_histo)
+          TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert and hist_remove: for each block, you need to provide an array " <<
+          "of size nbins_histo";
+        // Normalize hist_ins
+        double s = 0;
+        double step = beta / (params.nbins_histo - 1);
+        for (int i = 0; i < params.nbins_histo; ++i) {
+          double fac = step;
+          if (i == 0 || i == params.nbins_histo-1) fac /= 2.; // first and last bin are half-sized
+          s += fac * (*hist_ins)[i];
+        }
+        if (std::abs(s) < 1.e-15) TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert: please provide a non-zero distribution";
+        for (auto &elem : (*hist_ins)) elem /= s;
+      }
+      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.nbins_histo,
+                                     hist_ins, hist_rem, taus_bins, use_improved_sampling), "Insert Delta_" + block_name, prop_prob);
+      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.nbins_histo,
+                                     hist_ins, hist_rem, taus_bins, use_improved_sampling), "Remove Delta_" + block_name, prop_prob);
       if (params.move_double) {
         for (size_t block2 = 0; block2 < _Delta_tau.size(); ++block2) {
           int block_size2         = _Delta_tau[block2].data().shape()[1];
@@ -428,19 +476,28 @@ namespace triqs_cthyb {
     qmc.add_measure(measure_average_sign{data, _average_sign}, "Average sign");
     qmc.add_measure(measure_average_order{data, _average_order}, "Average order");
     qmc.add_measure(measure_auto_corr_time{data, _auto_corr_time}, "Auto-correlation time");
+    qmc.add_measure(measure_update_time{data, _update_time}, "Update time");  // Careful, this needs to be added last
 
     // --------------------------------------------------------------------------
+
+    mc_weight_t sign = data.current_sign * data.atomic_weight / std::abs(data.atomic_weight);
+
+    for (size_t block = 0; block < _Delta_tau.size(); ++block) {
+      auto det = data.dets[block].determinant();
+      sign *= det / std::abs(det);
+    }
 
     // Run! The empty (starting) configuration has sign = 1
     _solve_status =
        qmc.warmup_and_accumulate(params.n_warmup_cycles, params.n_cycles, params.length_cycle,
-                                 triqs::utility::clock_callback(params.max_time));
+                                 triqs::utility::clock_callback(params.max_time), sign);
     qmc.collect_results(_comm);
 
     if (params.verbosity >= 2) {
       std::cout << "Average sign: " << _average_sign << std::endl;
       std::cout << "Average order: " << _average_order << std::endl;
       std::cout << "Auto-correlation time: " << _auto_corr_time << std::endl;
+      std::cout << "Average update time: " << _update_time << std::endl; 
     }
 
     // Copy local (real or complex) G_tau back to complex G_tau

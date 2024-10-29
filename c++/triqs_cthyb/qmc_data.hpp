@@ -34,13 +34,15 @@ namespace triqs_cthyb {
  ***********************/
   struct qmc_data {
 
-    configuration config; // Configuration
+    configuration &config; // Configuration
     time_segment tau_seg;
     std::map<std::pair<int, int>, int> linindex; // Linear index constructed from block and inner indices
     atom_diag const &h_diag;                     // Diagonalization of the atomic problem
     mutable impurity_trace imp_trace;            // Calculator of the trace
     std::vector<int> n_inner;
     block_gf<imtime, delta_target_t> delta; // Hybridization function
+    bool updated;
+    double n_acc;
 
     /// This callable object adapts the Delta function for the call of the det.
     struct delta_block_adaptor {
@@ -53,7 +55,28 @@ namespace triqs_cthyb {
       delta_block_adaptor &operator=(delta_block_adaptor &&) = default;
 
       det_scalar_t operator()(std::pair<time_pt, int> const &x, std::pair<time_pt, int> const &y) const {
-        det_scalar_t res = delta_block[closest_mesh_pt(double(x.first - y.first))](x.second, y.second);
+        double dtau = double(x.first - y.first);
+        auto ind = delta_block.mesh().to_data_index(closest_mesh_pt(dtau));
+        det_scalar_t res, ya, yb;
+        double xa, xb;
+        bool use_linear_interpolation = false;
+        if (use_linear_interpolation) {
+          xa = delta_block.mesh().to_value(ind);
+          ya = delta_block[ind](x.second, y.second);
+          if (dtau >= xa) {
+            xb = delta_block.mesh().to_value(ind+1);
+            yb = delta_block[ind+1](x.second, y.second);
+          }
+          else {
+            xb = xa;
+            xa = delta_block.mesh().to_value(ind-1);
+            yb = ya;
+            ya = delta_block[ind-1](x.second, y.second);
+          }
+          res = ya + (dtau - xa) * (yb - ya) / (xb - xa);
+        }
+        else
+          res = delta_block[ind](x.second, y.second);
         return (x.first >= y.first ? res : -res); // x,y first are time_pt, wrapping is automatic in the - operation, but need to
                                                   // compute the sign
       }
@@ -68,21 +91,48 @@ namespace triqs_cthyb {
 
     // Construction
     qmc_data(double beta, solve_parameters_t const &p, atom_diag const &h_diag, std::map<std::pair<int, int>, int> linindex,
-             block_gf_const_view<imtime> delta, std::vector<int> n_inner, histo_map_t *histo_map)
-       : config(beta),
+             block_gf_const_view<imtime> delta, std::vector<int> n_inner, histo_map_t *histo_map, configuration &c)
+       : config(c),
          tau_seg(beta),
          linindex(linindex),
          h_diag(h_diag),
          imp_trace(beta, h_diag, histo_map, p.use_norm_as_weight, p.measure_density_matrix, p.time_invariance, p.performance_analysis),
          n_inner(n_inner),
          delta(map([](gf_const_view<imtime> d) { return real(d); }, delta)),
+         updated(false),
+         n_acc(0.),
          current_sign(1),
          old_sign(1) {
+      config.clear();
+      std::vector<std::vector<std::pair<time_pt, int>>> X(delta.size()), Y(delta.size());
+      for (auto const &o : p.initial_configuration) {
+        auto tau = o.first;
+        auto op  = o.second;
+        auto block_index = op.block_index;
+        auto inner_index = op.inner_index;
+        if (block_index >= delta.size() || inner_index >= n_inner[block_index])
+          TRIQS_RUNTIME_ERROR << "Inconsistency in the block structure of the initial configuration";
+
+        op.linear_index = linindex[std::make_pair(block_index, inner_index)];
+
+        imp_trace.try_insert(tau, op);
+        imp_trace.confirm_insert();
+
+        if (op.dagger) X[block_index].push_back(std::make_pair(tau,inner_index));
+        else Y[block_index].push_back(std::make_pair(tau,inner_index));
+
+        config.insert(tau, op);
+        config.finalize();
+      }
       std::tie(atomic_weight, atomic_reweighting) = imp_trace.compute();
+
       dets.clear();
+      dets.reserve(delta.size());
       for (auto const &bl : range(delta.size())) {
+        if (X[bl].size() != Y[bl].size())
+          TRIQS_RUNTIME_ERROR << "In the initial config, the number of c and c_dag operators should be equal";
 #ifdef HYBRIDISATION_IS_COMPLEX
-        dets.emplace_back(delta_block_adaptor(delta[bl]), p.det_init_size);
+        dets.emplace_back(delta_block_adaptor(delta[bl]), X[bl], Y[bl]);
 #else
         if (!is_gf_real(delta[bl], 1e-10)) {
           //TRIQS_RUNTIME_ERROR << "The Delta(tau) block number " << bl << " is not real in tau space";
@@ -92,13 +142,14 @@ namespace triqs_cthyb {
             std::cerr << "WARNING: Dissregarding the imaginary component in the calculation.\n";
           }
         }
-        dets.emplace_back(delta_block_adaptor(real(delta[bl])), p.det_init_size);
+        dets.emplace_back(delta_block_adaptor(real(delta[bl])), X[bl], Y[bl]);
 #endif
         dets.back().set_singular_threshold(p.det_singular_threshold);
         dets.back().set_n_operations_before_check(p.det_n_operations_before_check);
         dets.back().set_precision_warning(p.det_precision_warning);
         dets.back().set_precision_error(p.det_precision_error);
       }
+      update_sign();
     }
 
     qmc_data(qmc_data const &) = delete; // Member imp_trace is not copyable

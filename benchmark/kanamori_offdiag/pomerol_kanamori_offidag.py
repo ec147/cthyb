@@ -61,20 +61,20 @@ if __name__ == '__main__':
     print('V =\n', V)
     print('T_imp =\n', T_imp)
     print('T_bath =\n', T_bath)
-    
+
     T = np.block([
         [ T_imp, V ],
         [ V.T, T_bath]
         ])
-    
+
     print('T =\n', T)
 
     H_int = h_int_kanamori(
         spin_names, imp_idxs,
         np.array([[0,U-3*J],[U-3*J,0]]),
         np.array([[U,U-2*J],[U-2*J,U]]),
-        J,True)
-    
+        J,off_diag=True)
+
     H = H_int + get_quadratic_operator(T, fop)
 
     up, do = spin_names

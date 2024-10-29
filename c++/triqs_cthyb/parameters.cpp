@@ -66,6 +66,7 @@ namespace triqs_cthyb {
     h5_write(grp, "n_iw", cp.n_iw);
     h5_write(grp, "n_tau", cp.n_tau);
     h5_write(grp, "n_l", cp.n_l);
+    h5_write(grp, "n_tau_delta", cp.n_tau_delta);
     h5_write(grp, "delta_interface", cp.delta_interface);
   }
 
@@ -75,6 +76,7 @@ namespace triqs_cthyb {
     h5_read(grp, "n_iw", cp.n_iw);
     h5_read(grp, "n_tau", cp.n_tau);
     h5_read(grp, "n_l", cp.n_l);
+    h5_read(grp, "n_tau_delta", cp.n_tau_delta);
     h5::try_read(grp, "delta_interface", cp.delta_interface);
     triqs::gfs::h5_read_gf_struct(grp, "gf_struct", cp.gf_struct);
   }
@@ -130,6 +132,10 @@ namespace triqs_cthyb {
     h5_write(grp, "use_norm_as_weight", sp.use_norm_as_weight);
     h5_write(grp, "performance_analysis", sp.performance_analysis);
     h5_write(grp, "proposal_prob", sp.proposal_prob);
+
+    h5_write(grp, "nbins_histo", sp.nbins_histo);
+    h5_write(grp, "hist_insert", sp.hist_insert);
+    h5_write(grp, "hist_remove", sp.hist_remove);
 
     //h5_write(grp, "move_global", sp.move_global);
     if( sp.move_global.size() != 0 )
@@ -198,6 +204,10 @@ namespace triqs_cthyb {
     h5_read(grp, "use_norm_as_weight", sp.use_norm_as_weight);
     h5_read(grp, "performance_analysis", sp.performance_analysis);
     h5_read(grp, "proposal_prob", sp.proposal_prob);
+
+    h5_read(grp, "nbins_histo", sp.nbins_histo);
+    h5_read(grp, "hist_insert", sp.hist_insert);
+    h5_read(grp, "hist_remove", sp.hist_remove);
 
     //h5_read(grp, "move_global", sp.move_global);
     if( grp.has_key("move_global") )

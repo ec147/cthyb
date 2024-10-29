@@ -32,6 +32,7 @@
 #include "types.hpp"
 #include "container_set.hpp"
 #include "parameters.hpp"
+#include "configuration.hpp"
 
 namespace triqs_cthyb {
 
@@ -43,7 +44,7 @@ namespace triqs_cthyb {
     gf_struct_t gf_struct; // Block structure of the Green function
     many_body_op_t _h_loc; // The local Hamiltonian = h_int + h0
     many_body_op_t _h_loc0; //noninteracting part of the local Hamiltonian
-    int n_iw, n_tau, n_l;
+    int n_iw, n_tau, n_l, n_tau_delta;
     bool delta_interface;
 
     std::vector<matrix_t> _density_matrix; // density matrix, when used in Norm mode
@@ -52,7 +53,9 @@ namespace triqs_cthyb {
     mc_weight_t _average_sign;             // average sign of the QMC
     double _average_order;                 // average perturbation order
     double _auto_corr_time;                // Auto-correlation time
+    double _update_time;                   // average update time
     int _solve_status;                     // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
+    configuration _configuration;          // Final configuration of the run
 
     // Single-particle Green's function containers
     std::optional<G_iw_t> _G0_iw; // Non-interacting Matsubara Green's function
@@ -149,9 +152,15 @@ namespace triqs_cthyb {
 
     /// Auto-correlation time
     double auto_corr_time() const { return _auto_corr_time; }
+	
+	/// Average update time
+    double update_time() const { return _update_time; } 
 
     /// Status of the ``solve()`` on exit.
     int solve_status() const { return _solve_status; }
+
+    /// Configuration
+    configuration const &get_configuration() const { return _configuration; }
 
     /// is cthyb compiled with support for complex hybridization?
     bool hybridisation_is_complex() const {
@@ -192,6 +201,7 @@ namespace triqs_cthyb {
       h5_write(grp, "average_sign", s._average_sign);
       h5_write(grp, "average_order", s._average_order);
       h5_write(grp, "auto_corr_time", s._auto_corr_time);
+      h5_write(grp, "update_time", s._update_time);
       h5_write(grp, "solve_status", s._solve_status);
       h5_write(grp, "Delta_infty_vec", s.Delta_infty_vec);
     }
@@ -213,6 +223,7 @@ namespace triqs_cthyb {
       h5::try_read(grp, "average_sign", s._average_sign);
       h5::try_read(grp, "average_order", s._average_order);
       h5::try_read(grp, "auto_corr_time", s._auto_corr_time);
+      h5::try_read(grp, "update_time", s._update_time);
       h5::try_read(grp, "solve_status", s._solve_status);
       h5::try_read(grp, "Delta_infty_vec", s.Delta_infty_vec);
 

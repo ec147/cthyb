@@ -59,25 +59,25 @@ if __name__ == '__main__':
     print('V =\n', V)
     print('T_imp =\n', T_imp)
     print('T_bath =\n', T_bath)
-    
+
     T = np.block([
         [ T_imp, V ],
         [ V.T, T_bath]
         ])
-    
+
     print('T =\n', T)
 
     H_int = h_int_kanamori(
         spin_names, imp_idxs,
         np.array([[0,U-3*J],[U-3*J,0]]),
         np.array([[U,U-2*J],[U-2*J,U]]),
-        J,True)
-    
+        J,off_diag=True)
+
     H = H_int + get_quadratic_operator(T, fop)
-            
+
     ed = TriqsExactDiagonalization(H, fop, beta)
 
-    n_tau = 101    
+    n_tau = 101
     G_tau_up = Gf(mesh=MeshImTime(beta, 'Fermion', n_tau), target_shape=[2, 2])
     G_tau_do = Gf(mesh=MeshImTime(beta, 'Fermion', n_tau), target_shape=[2, 2])
 

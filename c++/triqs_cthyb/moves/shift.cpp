@@ -210,6 +210,7 @@ namespace triqs_cthyb {
     time_pt tau_max = std::max(tau_old,tau_new);
     if (tau_min < data.imp_trace.min_tau) data.imp_trace.min_tau = tau_min;
     if (tau_max > data.imp_trace.max_tau) data.imp_trace.max_tau = tau_max;
+    data.updated = true;
 
     // Update the tree
     data.imp_trace.confirm_shift();

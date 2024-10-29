@@ -27,6 +27,9 @@ namespace triqs_cthyb {
     qmc_data const &data;
     std::vector<matrix_t> &block_dm; // density matrix of each block
     mc_weight_t z = 0;
+    bool flag = true;  
+    mc_weight_t old_z = 0; 
+    mc_weight_t old_s = 0; 
 
     measure_density_matrix(qmc_data const &data, std::vector<matrix_t> &density_matrix);
     void accumulate(mc_weight_t s);

@@ -486,7 +486,7 @@ namespace triqs_cthyb {
 
   //-------- Compute the full trace ------------------------------------------
   // Returns MC atomic weight and reweighting = trace/(atomic weight)
-  std::pair<h_scalar_t, h_scalar_t> impurity_trace::compute(double p_yee, double u_yee, bool meas_den) {  
+  std::pair<h_scalar_t, h_scalar_t> impurity_trace::compute(double p_yee, double u_yee, bool meas_den) {
 
     double epsilon         = 1.e-15; // Machine precision
     auto log_epsilon0      = -std::log(1.e-15);
@@ -572,7 +572,7 @@ namespace triqs_cthyb {
           int dim = get_block_dim(bl);
           density_matrix[bl].mat = matrix_t(dim,dim);
           density_matrix[bl].mat = h_scalar_t{0};
-	  density_matrix[bl].is_valid = false;
+	        density_matrix[bl].is_valid = false;
         }
       }
       else {

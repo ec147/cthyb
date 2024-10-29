@@ -137,6 +137,8 @@ c.add_member(c_name = "constr_parameters",
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
 | n_l             | int                     | 50      | Number of Legendre polynomials for gf<legendre, matrix_valued>  |
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
+| n_tau_delta     | int                     | -1      | Number of tau points for Delta_tau<imtime, matrix_valued>       |
++-----------------+-------------------------+---------+-----------------------------------------------------------------+
 | delta_interface | bool                    | false   | Use Delta_tau and h_loc0 as input instead of G0_iw?             |
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
 """)
@@ -229,9 +231,17 @@ c.add_member(c_name = "solve_parameters",
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | use_norm_as_weight            | bool                                                     | false                         | Use the norm of the density matrix in the weight if true, otherwise use Trace                                     |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| initial_configuration         | Configuration                                            | {}                            | Initial configuration for the run                                                                                  |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | performance_analysis          | bool                                                     | false                         | Analyse performance of trace computation with histograms (developers only)?                                       |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | proposal_prob                 | dict(str:float)                                          | {}                            | Operator insertion/removal probabilities for different blocks                                                     |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| nbins_histo                   | int                                                      | 100                           | Number of bins in hist_insert and hist_remove                                                                     |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| hist_insert                   | dict(list(double))                                       | {}                            | Proposal distribution for the insert move                                                                         |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| hist_remove                   | dict(list(double))                                       | {}                            | Proposal distribution for the remove move                                                                         |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | move_global                   | dict(str : dict(indices : indices))                      | {}                            | List of global moves (with their names). Each move is specified with an index substitution dictionary.            |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
@@ -311,9 +321,17 @@ c.add_property(name = "auto_corr_time",
                getter = cfunction("double auto_corr_time ()"),
                doc = r"""Auto-correlation time""")
 
+c.add_property(name = "update_time",
+               getter = cfunction("double update_time ()"),
+               doc = r"""Average update time""")			   
+			   
 c.add_property(name = "solve_status",
                getter = cfunction("int solve_status ()"),
                doc = r"""status of the ``solve()`` on exit.""")
+
+c.add_property(name = "configuration",
+               getter = cfunction("configuration get_configuration()"),
+               doc = r"""Configuration""")
 
 c.add_property(name = "hybridisation_is_complex",
                getter = cfunction("bool hybridisation_is_complex ()"),
@@ -544,6 +562,11 @@ c.add_member(c_name = "use_norm_as_weight",
              initializer = """ false """,
              doc = r"""Use the norm of the density matrix in the weight if true, otherwise use Trace""")
 
+c.add_member(c_name = "initial_configuration",
+             c_type = "triqs_cthyb::configuration",
+             initializer = """ {} """,
+             doc = r"""Initial configuration for the run""")
+
 c.add_member(c_name = "performance_analysis",
              c_type = "bool",
              initializer = """ false """,
@@ -554,6 +577,25 @@ c.add_member(c_name = "proposal_prob",
              initializer = """ {} """,
              doc = r"""Operator insertion/removal probabilities for different blocks
      type: dict(str:float)
+     default: {}""")
+
+c.add_member(c_name = "nbins_histo",
+             c_type = "int",
+             initializer = """ 100 """,
+             doc = r"""Number of bins in hist_insert and hist_remove""")
+
+c.add_member(c_name = "hist_insert",
+             c_type = "std::map<std::string, std::vector<double>>",
+             initializer = """ {} """,
+             doc = r"""Proposal distribution for the insert move
+     type: dict(list(double))
+     default: {}""")
+
+c.add_member(c_name = "hist_remove",
+             c_type = "std::map<std::string, std::vector<double>>",
+             initializer = """ {} """,
+             doc = r"""Proposal distribution for the remove move
+     type: dict(list(double))
      default: {}""")
 
 c.add_member(c_name = "move_global",
@@ -641,6 +683,11 @@ c.add_member(c_name = "n_l",
              initializer = """ 50 """,
              doc = r"""Number of Legendre polynomials for gf<legendre, matrix_valued>""")
 
+c.add_member(c_name = "n_tau_delta",
+             c_type = "int",
+             initializer = """ -1 """,
+             doc = r"""Number of tau points for Delta_tau<imtime, matrix_valued>""")
+
 c.add_member(c_name = "delta_interface",
              c_type = "bool",
              initializer = """ false """,
@@ -648,5 +695,30 @@ c.add_member(c_name = "delta_interface",
 
 module.add_converter(c)
 
+# The class configuration
+c = class_(
+        py_type = "Configuration",  # name of the python class
+        c_type = "triqs_cthyb::configuration",   # name of the C++ class
+        doc = r"""Core class of the cthyb configuration""",   # doc of the C++ class
+        comparisons = "==",
+        is_printable = True,
+        hdf5 = True
+)
+
+c.add_constructor(signature = "()",
+                  doc = "Create empty configuration")
+
+c.add_constructor(signature = "(double beta)",
+                  doc = "Initialize beta")
+
+c.add_property(name = "beta",
+               getter = cfunction("double beta()"),
+               doc = r"""Value of beta""")
+
+c.add_property(name = "size",
+               getter = cfunction("int size()"),
+               doc = r"""Size of the configuration""")
+
+module.add_class(c)
 
 module.generate_code()
