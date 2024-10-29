@@ -54,7 +54,7 @@ def run_kanamori(max_orbitals,orbital_mixing):
         V = 0.3
 
         h_k = V*np.ones((num_orbitals,num_orbitals)) if orbital_mixing else V*np.eye(num_orbitals)
-        h_int = h_int_kanamori(spin_names,orb_names,U,Up,J,True)
+        h_int = h_int_kanamori(spin_names,orb_names,U,Up,J,off_diag=True)
 
         # Quantum numbers
         QN = [sum([n(*mkind("up",o)) for o in orb_names],Operator()),   # N_up
