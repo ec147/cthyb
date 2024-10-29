@@ -137,6 +137,8 @@ c.add_member(c_name = "constr_parameters",
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
 | n_l             | int                     | 50      | Number of Legendre polynomials for gf<legendre, matrix_valued>  |
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
+| n_tau_delta     | int                     | -1      | Number of tau points for Delta_tau<imtime, matrix_valued>       |
++-----------------+-------------------------+---------+-----------------------------------------------------------------+
 | delta_interface | bool                    | false   | Use Delta_tau and h_loc0 as input instead of G0_iw?             |
 +-----------------+-------------------------+---------+-----------------------------------------------------------------+
 """)
@@ -633,6 +635,11 @@ c.add_member(c_name = "n_l",
              c_type = "int",
              initializer = """ 50 """,
              doc = r"""Number of Legendre polynomials for gf<legendre, matrix_valued>""")
+
+c.add_member(c_name = "n_tau_delta",
+             c_type = "int",
+             initializer = """ -1 """,
+             doc = r"""Number of tau points for Delta_tau<imtime, matrix_valued>""")
 
 c.add_member(c_name = "delta_interface",
              c_type = "bool",

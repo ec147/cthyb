@@ -61,16 +61,19 @@ namespace triqs_cthyb {
   };
 
   solver_core::solver_core(constr_parameters_t const &p)
-     : beta(p.beta), gf_struct(p.gf_struct), n_iw(p.n_iw), n_tau(p.n_tau), n_l(p.n_l), delta_interface(p.delta_interface), constr_parameters(p) {
+     : beta(p.beta), gf_struct(p.gf_struct), n_iw(p.n_iw), n_tau(p.n_tau), n_l(p.n_l), n_tau_delta(p.n_tau_delta),
+       delta_interface(p.delta_interface), constr_parameters(p) {
 
-    if (p.n_tau < 2 * p.n_iw)
+    if (n_tau_delta == -1) n_tau_delta = n_tau;
+
+    if (n_tau_delta < 2 * p.n_iw && !delta_interface)
       TRIQS_RUNTIME_ERROR
          << "Must use as least twice as many tau points as Matsubara frequencies: n_iw = " << p.n_iw
-         << " but n_tau = " << p.n_tau << ".";
+         << " but n_tau_delta = " << n_tau_delta << ".";
 
     // Allocate single particle greens functions
     if (not delta_interface) _G0_iw = block_gf<imfreq>({beta, Fermion, n_iw}, gf_struct);
-    _Delta_tau = block_gf<imtime>({beta, Fermion, n_tau}, gf_struct);
+    _Delta_tau = block_gf<imtime>({beta, Fermion, n_tau_delta}, gf_struct);
   }
 
   /// -------------------------------------------------------------------------------------------
