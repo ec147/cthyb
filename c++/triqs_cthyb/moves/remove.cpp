@@ -30,8 +30,8 @@ namespace triqs_cthyb {
   }
 
   move_remove_c_cdag::move_remove_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data, mc_tools::random_generator &rng,
-                                         histo_map_t *histos, int nbins, std::vector<double> const *hist_insert,
-                                         std::vector<double> const *hist_remove, std::vector<time_pt> const *taus_bin, bool use_improved_sampling)
+                                         histo_map_t *histos, int nbins, std::vector<double> const *hist_insert, std::vector<double> const *hist_remove, 
+					 bool use_improved_sampling)
      : data(data),
        config(data.config),
        rng(rng),
@@ -41,9 +41,8 @@ namespace triqs_cthyb {
        histo_accepted(add_histo("remove_length_accepted_" + block_name, histos, nbins)),
        hist_insert(hist_insert ? hist_insert : nullptr),
        hist_remove(hist_remove ? hist_remove : nullptr),
-       step_i(time_pt::Nmax / (nbins - 1)),
+       step_i(time_pt::Nmax / nbins),
        use_improved_sampling(use_improved_sampling),
-       taus_bin(taus_bin ? taus_bin : nullptr),
        t1(time_pt(1, config.beta())),
        Nmax(100) 	{
          bins.reserve(Nmax);
@@ -88,12 +87,7 @@ namespace triqs_cthyb {
         int ind;
         // need to call try_delete to get binary tree index
         time_pt dtau_r = data.imp_trace.try_delete(i, block_index, true) - tau1;
-        if (dtau_r < (*taus_bin)[1])
-          ind = 0;
-        else if (dtau_r >= (*taus_bin)[nbins-1])
-          ind = nbins-1;
-        else
-          ind = (floor_div(dtau_r, t1) - step_i / 2) / step_i + 1;
+        ind = floor_div(dtau_r, t1) / step_i;
         bins[i] = ind;
         s += (*hist_remove)[ind];
       }
@@ -102,7 +96,7 @@ namespace triqs_cthyb {
       if (std::abs(s) <= 1.e-15) return 0; // quick return
 
       // draw a uniform variable on [0,1]
-      double ran  = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1);
+      double ran = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1);
       // choose the creation operator
       double csum = 0;
       for (int i = 0; i < det_size; ++i) {
@@ -117,17 +111,10 @@ namespace triqs_cthyb {
       tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
 
       // compute the probability of proposing the current config from the trial one
-      // this is simply hist_insert[bin(tau1-tau2)] (since for the insert move, dtau=t_c - t_cdag)
-      time_pt dtau_i = tau1 - tau2;
-      int ibin;
-      if (dtau_i < (*taus_bin)[1])
-        ibin = 0;
-      else if (dtau_i >= (*taus_bin)[nbins-1])
-        ibin = nbins-1;
-      else
-        ibin = (floor_div(dtau_i, t1) - step_i / 2) / step_i + 1;
+      // this is simply hist_insert[bin(tau2-tau1)] 
+      int ibin = bins[num_c_dag];
       if ((*hist_insert)[ibin] == 0.0) return 0; // quick return
-      fac = s * config.beta() * (*hist_insert)[ibin]  / (double(det_size) * (*hist_remove)[bins[num_c_dag]]);
+      fac = s * config.beta() * (*hist_insert)[ibin]  / (double(det_size) * (*hist_remove)[ibin]);
     }
     else
       tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);

@@ -291,27 +291,10 @@ namespace triqs_cthyb {
     };
 
     bool use_improved_sampling = true;
-    std::vector<time_pt> taus_bin;
     if (params.hist_insert.empty() && params.hist_remove.empty()) use_improved_sampling = false;
-    if (use_improved_sampling) {
-      if (params.hist_insert.size() != params.hist_remove.size() || params.hist_insert.size() != _Delta_tau.size())
+    if ((use_improved_sampling) && (params.hist_insert.size() != params.hist_remove.size() || params.hist_insert.size() != _Delta_tau.size()))
         TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert and hist_remove: the first dimension should be equal " <<
         "to the number of blocks in gf_struct";
-      taus_bin = std::vector<time_pt>(params.nbins_histo + 1); // vector list of the time_pt of each bin
-      // converts bin step into uint64
-      uint64_t step = time_pt::Nmax / (params.nbins_histo - 1); // this is floored, so this ensures that the sum of all bin steps
-      // does not overshoot Nmax
-      time_pt step_t = time_pt(step, beta);
-      taus_bin[0] = time_pt(0, beta);
-      for (int i = 1; i < params.nbins_histo; ++i) {
-        if (i==1)
-          taus_bin[i] = time_pt(step / 2, beta);  // first bin is half-sized
-        else
-          taus_bin[i] = taus_bin[i-1] + step_t;
-      }
-      taus_bin[params.nbins_histo] = time_pt(time_pt::Nmax, beta);  // make sure the last tau point exactly reaches beta
-    }
-    std::vector<time_pt> *taus_bins = use_improved_sampling ? &taus_bin : nullptr;
 
     for (size_t block = 0; block < _Delta_tau.size(); ++block) {
       int block_size         = _Delta_tau[block].data().shape()[1];
@@ -325,19 +308,17 @@ namespace triqs_cthyb {
           "of size nbins_histo";
         // Normalize hist_ins
         double s = 0;
-        double step = beta / (params.nbins_histo - 1);
-        for (int i = 0; i < params.nbins_histo; ++i) {
-          double fac = step;
-          if (i == 0 || i == params.nbins_histo-1) fac /= 2.; // first and last bin are half-sized
-          s += fac * (*hist_ins)[i];
-        }
+        double step = beta / params.nbins_histo;
+        for (int i = 0; i < params.nbins_histo; ++i) 
+          s += (*hist_ins)[i];
+	s *= step;
         if (std::abs(s) < 1.e-15) TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert: please provide a non-zero distribution";
         for (auto &elem : (*hist_ins)) elem /= s;
       }
       inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.nbins_histo,
-                                     hist_ins, hist_rem, taus_bins, use_improved_sampling), "Insert Delta_" + block_name, prop_prob);
+                                     hist_ins, hist_rem, use_improved_sampling), "Insert Delta_" + block_name, prop_prob);
       removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.nbins_histo,
-                                     hist_ins, hist_rem, taus_bins, use_improved_sampling), "Remove Delta_" + block_name, prop_prob);
+                                     hist_ins, hist_rem, use_improved_sampling), "Remove Delta_" + block_name, prop_prob);
       if (params.move_double) {
         for (size_t block2 = 0; block2 < _Delta_tau.size(); ++block2) {
           int block_size2         = _Delta_tau[block2].data().shape()[1];

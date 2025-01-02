@@ -32,7 +32,7 @@ namespace triqs_cthyb {
   move_insert_c_cdag::move_insert_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data,
                                          mc_tools::random_generator &rng, histo_map_t *histos, int nbins,
                                          std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-                                         std::vector<time_pt> const *taus_bin, bool use_improved_sampling)
+                                         bool use_improved_sampling)
      : data(data),
        config(data.config),
        rng(rng),
@@ -42,10 +42,9 @@ namespace triqs_cthyb {
        histo_accepted(add_histo("insert_length_accepted_" + block_name, histos, nbins)),
        hist_insert(hist_insert ? hist_insert : nullptr),
        hist_remove(hist_remove ? hist_remove : nullptr),
-       step_i(time_pt::Nmax / (nbins - 1)),
-       step_d(config.beta() / double(nbins - 1)),
+       step_i(time_pt::Nmax / nbins),
+       step_d(config.beta() / double(nbins)),
        use_improved_sampling(use_improved_sampling),
-       taus_bin(taus_bin ? taus_bin : nullptr),
        t1(time_pt(1, config.beta()))	{}
 
   mc_weight_t move_insert_c_cdag::attempt() {
@@ -65,58 +64,47 @@ namespace triqs_cthyb {
     int det_size = det.size();
 
     // Choice of times for insertion. Find the time as double and them put them on the grid.
-    tau1 = data.tau_seg.get_random_pt(rng);
+    if (!use_improved_sampling) tau1 = data.tau_seg.get_random_pt(rng);
+    tau2 = data.tau_seg.get_random_pt(rng);
     double fac = 1.;
     if (use_improved_sampling) {
       // first choose the bin, each bin being weighted by the probability hist_insert[bin]*length(bin)
       double ran  = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1); // random number in [0,1]
       double csum = 0;
       int nbins = (*hist_insert).size();
-      int ibin1 = 0, ibin2 = 0;
+      int ibin = 0;
       for (int i = 0; i < nbins; ++i) {
-        double step = step_d;
-        if (i==0 || i==nbins-1) step /= 2.;  // first and last bins are half-sized
-        csum += (*hist_insert)[i] * step;
+        csum += (*hist_insert)[i] * step_d;
         if (csum >= ran || i == (nbins - 1) ) {
-          ibin1 = i;
+          ibin = i;
           break;
         }
       }
+
+      time_pt bin_start  = time_pt(step_i * ibin, config.beta());
+      time_pt bin_finish = time_pt(step_i * (ibin+1), config.beta());
+      if (ibin == nbins - 1) bin_finish = time_pt(time_pt::Nmax, config.beta());
+      
       // now draw a time point uniformly within this bin
-      tau2 = tau1 + data.tau_seg.get_random_pt(rng, (*taus_bin)[ibin1], (*taus_bin)[ibin1+1]);
+      tau1 = tau2 + data.tau_seg.get_random_pt(rng, bin_start, bin_finish);
 
       // compute the probability of proposing the current config from the trial one
       // this is simply hist_remove[bin(tau1-tau2)] / sum_i(hist_remove(bin(tau_i - tau2)))
       // where the sum is performed over all creation operators of the current block, including the trial one
-      // (careful, the convention for dtau in the remove move is t_cdag - t_c, while it is t_c - t_cdag in the insert move)
-      time_pt dtau_r = tau1 - tau2;
-      // find the bin of tau1 - tau2  (different from ibin, which is the bin of tau2 - tau1)
-      if (dtau_r < (*taus_bin)[1])  // special treatment for first and last bin since they're not the same size
-        ibin2 = 0;
-      else if (dtau_r >= (*taus_bin)[nbins-1])
-        ibin2 = nbins-1;
-      else
-        ibin2 = (floor_div(dtau_r, t1) - step_i / 2 ) / step_i + 1;
       int ind;
-      double s = (*hist_remove)[ibin2];   // normalization constant = sum_i(hist_remove(bin(tau_i - tau2)))
+      double s = (*hist_remove)[ibin]; // normalization constant = sum_i(hist_remove(bin(tau_i - tau2)))
+      time_pt dtau_r; 
 
       for (int i = 0; i < det_size; ++i) {
         dtau_r = det.get_x(i).first - tau2;
-        if (dtau_r < (*taus_bin)[1])
-          ind = 0;
-        else if (dtau_r >= (*taus_bin)[nbins-1])
-          ind = nbins-1;
-        else
-          ind = (floor_div(dtau_r, t1) - step_i / 2) / step_i + 1;
+        ind = floor_div(dtau_r, t1) / step_i;
         s += (*hist_remove)[ind];
       }
 
       // corrective factor for t_ratio
-      if (std::abs(s) < 1.e-15 || (*hist_remove)[ibin2] == 0.0) return 0; // quick return
-      fac = double(data.dets[block_index].size() + 1) * (*hist_remove)[ibin2] / (s * config.beta() * (*hist_insert)[ibin1]);
+      if (std::abs(s) < 1.e-15 || (*hist_remove)[ibin] == 0.0) return 0; // quick return
+      fac = double(data.dets[block_index].size() + 1) * (*hist_remove)[ibin] / (s * config.beta() * (*hist_insert)[ibin]);
     }
-    else
-      tau2 = data.tau_seg.get_random_pt(rng);
 
 #ifdef EXT_DEBUG
     std::cerr << "* Proposing to insert:" << std::endl;
