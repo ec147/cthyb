@@ -142,6 +142,11 @@ namespace triqs_cthyb {
 #ifdef EXT_DEBUG
       std::cerr << "atomic_weight == 0" << std::endl;
 #endif
+      if (meas_wr) {
+        int ibin = floor_div(tau2 - tau1, t1) / step_i;
+        (*wr_remove)[ibin] += std::abs(det_ratio * new_atomic_reweighting);
+        (*count_remove)[ibin] ++;
+      } 
       return 0;
     }
     auto atomic_weight_ratio = new_atomic_weight / data.atomic_weight;

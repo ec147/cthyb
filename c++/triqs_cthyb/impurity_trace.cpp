@@ -555,7 +555,7 @@ namespace triqs_cthyb {
 
     if (histo) histo->n_block_at_root << to_sort_lnorm_b.size();
 
-    if (to_sort_lnorm_b.size() == 0) return {0.0, 1}; // structural 0
+    if (to_sort_lnorm_b.size() == 0) return {0.0, 0.0}; // structural 0
 
     // Now sort the blocks non structurally 0 according to the bound
     std::sort(to_sort_lnorm_b.begin(), to_sort_lnorm_b.end());
@@ -608,8 +608,9 @@ namespace triqs_cthyb {
       // additionnal Yee quick return criterion
       if (p_yee >= 0.0) {
 	auto current_weight = (use_norm_as_weight ? std::sqrt(norm_trace_sq) : full_trace); 
-        auto pmax           = std::abs(p_yee) * (std::abs(current_weight) + bound_cumul[bl]);
-        if (pmax < u_yee) return {0, 1}; // pmax < u, we can reject
+	auto weight_est     = std::abs(current_weight) + bound_cumul[bl];
+        auto pmax           = std::abs(p_yee) * weight_est;
+        if (pmax < u_yee) return {0, weight_est}; // pmax < u, we can reject
       }
 
       // computes the matrices, recursively along the modified path in the tree
