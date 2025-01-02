@@ -235,6 +235,8 @@ c.add_member(c_name = "solve_parameters",
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | performance_analysis          | bool                                                     | false                         | Analyse performance of trace computation with histograms (developers only)?                                       |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| measure_weight_ratio          | bool                                                     | false                         | Measure the weight ratios for each time bin                                                                       |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | proposal_prob                 | dict(str:float)                                          | {}                            | Operator insertion/removal probabilities for different blocks                                                     |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | nbins_histo                   | int                                                      | 100                           | Number of bins in hist_insert and hist_remove                                                                     |
@@ -308,6 +310,14 @@ c.add_property(name = "h_loc_diagonalization",
 c.add_property(name = "performance_analysis",
                getter = cfunction("triqs_cthyb::histo_map_t get_performance_analysis ()"),
                doc = r"""Histograms related to the performance analysis.""")
+
+c.add_property(name = "weight_ratio_insert",
+               getter = cfunction("triqs_cthyb::weight_ratio_map_t get_weight_ratio_insert ()"),
+               doc = r"""Weight ratios for the insert move""")
+
+c.add_property(name = "weight_ratio_remove",
+               getter = cfunction("triqs_cthyb::weight_ratio_map_t get_weight_ratio_remove ()"),
+               doc = r"""Weight ratios for the remove move""")
 
 c.add_property(name = "average_sign",
                getter = cfunction("triqs_cthyb::mc_weight_t average_sign ()"),
@@ -571,6 +581,11 @@ c.add_member(c_name = "performance_analysis",
              c_type = "bool",
              initializer = """ false """,
              doc = r"""Analyse performance of trace computation with histograms (developers only)?""")
+
+c.add_member(c_name = "measure_weight_ratio",
+             c_type = "bool",
+             initializer = """ false """,
+             doc = r"""Measure the weight ratios for each time bin""")
 
 c.add_member(c_name = "proposal_prob",
              c_type = "std::map<std::string, double>",

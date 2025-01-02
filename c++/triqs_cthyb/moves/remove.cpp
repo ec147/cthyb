@@ -30,21 +30,24 @@ namespace triqs_cthyb {
   }
 
   move_remove_c_cdag::move_remove_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data, mc_tools::random_generator &rng,
-                                         histo_map_t *histos, int nbins, std::vector<double> const *hist_insert, std::vector<double> const *hist_remove, 
-					 bool use_improved_sampling)
+                                         histo_map_t *histos, int nbins, std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
+					 std::vector<double> *wr_remove, std::vector<int> *count_remove) 
      : data(data),
        config(data.config),
        rng(rng),
        block_index(block_index),
        block_size(block_size),
+       count_remove(count_remove),
        histo_proposed(add_histo("remove_length_proposed_" + block_name, histos, nbins)),
        histo_accepted(add_histo("remove_length_accepted_" + block_name, histos, nbins)),
-       hist_insert(hist_insert ? hist_insert : nullptr),
-       hist_remove(hist_remove ? hist_remove : nullptr),
+       hist_insert(hist_insert),
+       hist_remove(hist_remove),
+       meas_wr(wr_remove),
+       Nmax(100),
        step_i(time_pt::Nmax / nbins),
-       use_improved_sampling(use_improved_sampling),
        t1(time_pt(1, config.beta())),
-       Nmax(100) 	{
+       use_improved_sampling(hist_insert && hist_remove),
+       wr_remove(wr_remove)	{
          bins.reserve(Nmax);
        }
 
@@ -147,6 +150,12 @@ namespace triqs_cthyb {
                           << new_atomic_weight / data.atomic_weight << " in config " << config.get_id();
 
     mc_weight_t p = atomic_weight_ratio * det_ratio;
+
+    if (meas_wr) {
+      int ibin = floor_div(tau2 - tau1, t1) / step_i;
+      (*wr_remove)[ibin] += std::abs(p);
+      (*count_remove)[ibin] ++;
+    }
 
 #ifdef EXT_DEBUG
     std::cerr << "Trace ratio: " << atomic_weight_ratio << '\t';

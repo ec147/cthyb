@@ -31,21 +31,24 @@ namespace triqs_cthyb {
 
   move_insert_c_cdag::move_insert_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data,
                                          mc_tools::random_generator &rng, histo_map_t *histos, int nbins,
-                                         std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-                                         bool use_improved_sampling)
+                                         std::vector<double> const *hist_insert, std::vector<double> const *hist_remove, 
+					 std::vector<double> *wr_insert, std::vector<int> *count_insert)
      : data(data),
        config(data.config),
        rng(rng),
        block_index(block_index),
        block_size(block_size),
+       count_insert(count_insert),
        histo_proposed(add_histo("insert_length_proposed_" + block_name, histos, nbins)),
        histo_accepted(add_histo("insert_length_accepted_" + block_name, histos, nbins)),
-       hist_insert(hist_insert ? hist_insert : nullptr),
-       hist_remove(hist_remove ? hist_remove : nullptr),
-       step_i(time_pt::Nmax / nbins),
+       hist_insert(hist_insert),
+       hist_remove(hist_remove),
+       meas_wr(wr_insert),
        step_d(config.beta() / double(nbins)),
-       use_improved_sampling(use_improved_sampling),
-       t1(time_pt(1, config.beta()))	{}
+       step_i(time_pt::Nmax / nbins),
+       t1(time_pt(1, config.beta())),
+       use_improved_sampling(hist_insert && hist_remove),
+       wr_insert(wr_insert) {} 
 
   mc_weight_t move_insert_c_cdag::attempt() {
 
@@ -167,6 +170,12 @@ namespace triqs_cthyb {
                           << new_atomic_weight / data.atomic_weight << " in config " << config.get_id();
 
     mc_weight_t p = atomic_weight_ratio * det_ratio;
+
+    if (meas_wr) { 
+      int ibin = floor_div(tau1 - tau2, t1) / step_i; 
+      (*wr_insert)[ibin] += std::abs(p);
+      (*count_insert)[ibin] ++;
+    }
 
 #ifdef EXT_DEBUG
     std::cerr << "Atomic ratio: " << atomic_weight_ratio << '\t';

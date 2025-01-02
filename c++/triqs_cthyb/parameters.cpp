@@ -131,6 +131,7 @@ namespace triqs_cthyb {
     h5_write(grp, "time_invariance", sp.time_invariance);
     h5_write(grp, "use_norm_as_weight", sp.use_norm_as_weight);
     h5_write(grp, "performance_analysis", sp.performance_analysis);
+    h5_write(grp, "measure_weight_ratio", sp.measure_weight_ratio);
     h5_write(grp, "proposal_prob", sp.proposal_prob);
 
     h5_write(grp, "nbins_histo", sp.nbins_histo);
@@ -203,6 +204,7 @@ namespace triqs_cthyb {
     h5_read(grp, "time_invariance", sp.time_invariance);
     h5_read(grp, "use_norm_as_weight", sp.use_norm_as_weight);
     h5_read(grp, "performance_analysis", sp.performance_analysis);
+    h5_read(grp, "measure_weight_ratio", sp.measure_weight_ratio);
     h5_read(grp, "proposal_prob", sp.proposal_prob);
 
     h5_read(grp, "nbins_histo", sp.nbins_histo);

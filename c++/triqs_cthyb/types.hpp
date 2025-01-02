@@ -52,6 +52,9 @@ namespace triqs_cthyb {
   using op_t        = std::pair<time_pt, int>;
   using histo_map_t = std::map<std::string, histogram>;
 
+  using weight_ratio_map_t = std::map<std::string, std::vector<double>>;
+  using counter_map_t = std::map<std::string, std::vector<int>>;
+
   using indices_type = triqs::operators::indices_t;
   using gf_struct_t  = triqs::hilbert_space::gf_struct_t;
 

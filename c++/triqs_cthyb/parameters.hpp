@@ -206,6 +206,9 @@ namespace triqs_cthyb {
     /// Analyse performance of trace computation with histograms (developers only)?
     bool performance_analysis = false;
 
+    /// Measure the weight ratio for each time bin 
+    bool measure_weight_ratio = false;
+
     /// Operator insertion/removal probabilities for different blocks
     /// type: dict(str:float)
     /// default: {}
