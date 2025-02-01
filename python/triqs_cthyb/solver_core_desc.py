@@ -319,6 +319,10 @@ c.add_property(name = "weight_ratio_remove",
                getter = cfunction("triqs_cthyb::weight_ratio_map_t get_weight_ratio_remove ()"),
                doc = r"""Weight ratios for the remove move""")
 
+c.add_property(name = "weight_ratio_shift",
+               getter = cfunction("triqs_cthyb::weight_ratio_map_t get_weight_ratio_shift ()"),
+               doc = r"""Weight ratios for the shift move""")
+
 c.add_property(name = "average_sign",
                getter = cfunction("triqs_cthyb::mc_weight_t average_sign ()"),
                doc = r"""Monte Carlo average sign.""")
@@ -333,8 +337,8 @@ c.add_property(name = "auto_corr_time",
 
 c.add_property(name = "update_time",
                getter = cfunction("double update_time ()"),
-               doc = r"""Average update time""")			   
-			   
+               doc = r"""Average update time""")
+
 c.add_property(name = "solve_status",
                getter = cfunction("int solve_status ()"),
                doc = r"""status of the ``solve()`` on exit.""")
@@ -561,7 +565,7 @@ c.add_member(c_name = "measure_density_matrix",
              c_type = "bool",
              initializer = """ false """,
              doc = r"""Measure the reduced impurity density matrix?""")
-			 
+
 c.add_member(c_name = "time_invariance",
              c_type = "bool",
              initializer = """ false """,

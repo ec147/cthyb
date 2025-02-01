@@ -91,8 +91,8 @@ TEST(CtHyb, Anderson) {
 #endif
 
   auto & G_tau = *solver.G_tau;
-  
-  
+
+
   if (rank == 0) {
     h5::file G_file(filename + ".out.h5", 'w');
 #ifdef BLOCK

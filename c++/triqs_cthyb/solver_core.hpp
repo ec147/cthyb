@@ -3,7 +3,7 @@
  *
  * TRIQS: a Toolbox for Research in Interacting Quantum Systems
  *
- * Copyright (C) 2014-2017, H. U.R. Strand, P. Seth, I. Krivenko, 
+ * Copyright (C) 2014-2017, H. U.R. Strand, P. Seth, I. Krivenko,
  *                          M. Ferrero and O. Parcollet
  *
  * TRIQS is free software: you can redistribute it and/or modify it under the
@@ -56,8 +56,8 @@ namespace triqs_cthyb {
     double _update_time;                   // average update time
     int _solve_status;                     // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
     configuration _configuration;          // Final configuration of the run
-					   
-    weight_ratio_map_t _weight_ratio_insert, _weight_ratio_remove; // Weight ratios for each move and each time bin
+
+    weight_ratio_map_t _weight_ratio_insert, _weight_ratio_remove, _weight_ratio_shift; // Weight ratios for each move and each time bin
 
     // Single-particle Green's function containers
     std::optional<G_iw_t> _G0_iw; // Non-interacting Matsubara Green's function
@@ -67,7 +67,7 @@ namespace triqs_cthyb {
     // Return reference to container_set
     container_set_t &container_set() { return static_cast<container_set_t &>(*this); }
     container_set_t const &container_set() const { return static_cast<container_set_t const &>(*this); }
- 
+
     public:
 
     // Struct containing the parameters relevant for the solver construction
@@ -124,7 +124,7 @@ namespace triqs_cthyb {
     void set_container_set(container_set_t &cs) { static_cast<container_set_t &>(*this) = cs; }
     container_set_t last_container_set() { return static_cast<container_set_t>(*this); }
     */
-    
+
     /// :math:`\Delta(\tau)` in imaginary time.
     block_gf_view<imtime> Delta_tau() { return _Delta_tau; }
 
@@ -154,9 +154,9 @@ namespace triqs_cthyb {
 
     /// Auto-correlation time
     double auto_corr_time() const { return _auto_corr_time; }
-	
+
 	/// Average update time
-    double update_time() const { return _update_time; } 
+    double update_time() const { return _update_time; }
 
     /// Status of the ``solve()`` on exit.
     int solve_status() const { return _solve_status; }
@@ -169,6 +169,9 @@ namespace triqs_cthyb {
 
     /// Weight ratio remove
     weight_ratio_map_t const &get_weight_ratio_remove() const { return _weight_ratio_remove; }
+
+    /// Weight ratio shift
+    weight_ratio_map_t const &get_weight_ratio_shift() const { return _weight_ratio_shift; }
 
     /// is cthyb compiled with support for complex hybridization?
     bool hybridisation_is_complex() const {
@@ -214,6 +217,7 @@ namespace triqs_cthyb {
       h5_write(grp, "Delta_infty_vec", s.Delta_infty_vec);
       h5_write(grp, "weight_ratio_insert", s._weight_ratio_insert);
       h5_write(grp, "weight_ratio_remove", s._weight_ratio_remove);
+      h5_write(grp, "weight_ratio_shift", s._weight_ratio_shift);
     }
 
     // Function that read all containers to hdf5 file
@@ -238,6 +242,7 @@ namespace triqs_cthyb {
       h5::try_read(grp, "Delta_infty_vec", s.Delta_infty_vec);
       h5::try_read(grp, "weight_ratio_insert", s._weight_ratio_insert);
       h5::try_read(grp, "weight_ratio_remove", s._weight_ratio_remove);
+      h5::try_read(grp, "weight_ratio_shift", s._weight_ratio_shift);
 
       return s;
     }

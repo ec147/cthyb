@@ -44,7 +44,7 @@
 #include "./measures/average_sign.hpp"
 #include "./measures/average_order.hpp"
 #include "./measures/auto_corr_time.hpp"
-#include "./measures/update_time.hpp" 
+#include "./measures/update_time.hpp"
 #ifdef CTHYB_G2_NFFT
 #include "./measures/G2_tau.hpp"
 #include "./measures/G2_iw.hpp"
@@ -162,7 +162,7 @@ namespace triqs_cthyb {
 
       // ==== Compute h_loc ====
 
-      _h_loc0 = {}; 
+      _h_loc0 = {};
 
       // Add non-interacting terms to h_loc
       for (auto bl : range(gf_struct.size())) {
@@ -298,7 +298,7 @@ namespace triqs_cthyb {
     int nbins = params.nbins_histo;
 
     bool meas_wr = params.measure_weight_ratio;
-    counter_map_t counter_insert, counter_remove;
+    counter_map_t counter_insert, counter_remove, counter_shift;
 
     for (size_t block = 0; block < _Delta_tau.size(); ++block) {
       int block_size         = _Delta_tau[block].data().shape()[1];
@@ -313,7 +313,7 @@ namespace triqs_cthyb {
         // Normalize hist_ins
         double s = 0;
         double step = beta / nbins;
-        for (int i = 0; i < nbins; ++i) 
+        for (int i = 0; i < nbins; ++i)
           s += (*hist_ins)[i];
 	s *= step;
         if (std::abs(s) < 1.e-15) TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert: please provide a non-zero distribution";
@@ -357,8 +357,18 @@ namespace triqs_cthyb {
       qmc.add_move(std::move(double_removes), "Remove four operators", 1.0);
     }
 
-    if (params.move_shift)
-      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map), "Shift one operator", 1.0);
+    if (params.move_shift) {
+      if (meas_wr) {
+        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
+          auto const &block_name = delta_names[block];
+          _weight_ratio_shift[block_name] = std::vector<double>(nbins,0);
+          counter_shift[block_name] = std::vector<int>(nbins,0);
+        }
+      }
+      weight_ratio_map_t *wr_shift = meas_wr ? &_weight_ratio_shift : nullptr;
+      counter_map_t *count_shift = meas_wr ? &counter_shift : nullptr;
+      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map, nbins, wr_shift, count_shift), "Shift one operator", 1.0);
+    }
 
     if (params.move_global.size()) {
       move_set_type global(qmc.get_rng());
@@ -494,12 +504,20 @@ namespace triqs_cthyb {
 	 mpi::all_reduce(counter_remove[block_name], _comm);
 	 mpi::all_reduce(_weight_ratio_insert[block_name], _comm);
 	 mpi::all_reduce(_weight_ratio_remove[block_name], _comm);
+         if (params.move_shift) {
+           mpi::all_reduce(_weight_ratio_shift[block_name], _comm);
+           mpi::all_reduce(counter_shift[block_name], _comm);
+         }
 	 for (int i = 0; i < nbins; ++i) {
            int c = counter_insert[block_name][i];
            if (c > 0) _weight_ratio_insert[block_name][i] /= c;
 	   c = counter_remove[block_name][i];
 	   if (c > 0) _weight_ratio_remove[block_name][i] /= c;
-	 } 
+           if (params.move_shift) {
+             c = counter_shift[block_name][i];
+             if (c > 0) _weight_ratio_shift[block_name][i] /= c;
+           }
+	 }
        }
     }
 
@@ -507,7 +525,7 @@ namespace triqs_cthyb {
       std::cout << "Average sign: " << _average_sign << std::endl;
       std::cout << "Average order: " << _average_order << std::endl;
       std::cout << "Auto-correlation time: " << _auto_corr_time << std::endl;
-      std::cout << "Average update time: " << _update_time << std::endl; 
+      std::cout << "Average update time: " << _update_time << std::endl;
     }
 
     // Copy local (real or complex) G_tau back to complex G_tau

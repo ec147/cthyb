@@ -29,12 +29,18 @@ namespace triqs_cthyb {
     return &(new_histo.first->second);
   }
 
-  move_shift_operator::move_shift_operator(qmc_data &data, mc_tools::random_generator &rng, histo_map_t *histos)
+  move_shift_operator::move_shift_operator(qmc_data &data, mc_tools::random_generator &rng, histo_map_t *histos,
+                                           int nbins, weight_ratio_map_t *wr_shift, counter_map_t *count_shift)
      : data(data),
        config(data.config),
        rng(rng),
        histo_proposed(add_histo("shift_length_proposed", histos)),
        histo_accepted(add_histo("shift_length_accepted", histos)),
+       t1(time_pt(1, config.beta())),
+       meas_wr(wr_shift),
+       step_i(time_pt::Nmax / nbins),
+       wr_shift(wr_shift),
+       count_shift(count_shift),
        block_index(0) {}
 
   mc_weight_t move_shift_operator::attempt() {
@@ -65,6 +71,7 @@ namespace triqs_cthyb {
     op_old         = (*itconfig).second;
     block_index    = op_old.block_index;
     auto is_dagger = op_old.dagger;
+    auto const &block_name = data.delta.block_names()[block_index];
 
 #ifdef EXT_DEBUG
     std::cerr << "(block " << block_index << ")" << std::endl;
@@ -184,6 +191,11 @@ namespace triqs_cthyb {
 #ifdef EXT_DEBUG
       std::cerr << "atomic_weight == 0" << std::endl;
 #endif
+      if (meas_wr) {
+        int ibin = floor_div(tau_new - tau_old, t1) / step_i;
+        (*wr_shift)[block_name][ibin] += std::abs(det_ratio * new_atomic_reweighting);
+        (*count_shift)[block_name][ibin] ++;
+      }
       return 0;
     }
     auto atomic_weight_ratio = new_atomic_weight / data.atomic_weight;
@@ -193,6 +205,12 @@ namespace triqs_cthyb {
 
     // --- Compute the weight
     mc_weight_t p = atomic_weight_ratio * det_ratio;
+
+    if (meas_wr) {
+      int ibin = floor_div(tau_new - tau_old, t1) / step_i;
+      (*wr_shift)[block_name][ibin] += std::abs(p);
+      (*count_shift)[block_name][ibin] ++;
+    }
 
 #ifdef EXT_DEBUG
     std::cerr << "Trace ratio: " << atomic_weight_ratio << '\t';
@@ -205,7 +223,7 @@ namespace triqs_cthyb {
   }
 
   mc_weight_t move_shift_operator::accept() {
-	  
+
     time_pt tau_min = std::min(tau_old,tau_new);
     time_pt tau_max = std::max(tau_old,tau_new);
     if (tau_min < data.imp_trace.min_tau) data.imp_trace.min_tau = tau_min;
