@@ -29,15 +29,18 @@ namespace triqs_cthyb {
     return &(new_histo.first->second);
   }
 
-  move_shift_operator::move_shift_operator(qmc_data &data, mc_tools::random_generator &rng, histo_map_t *histos,
-                                           int nbins, weight_ratio_map_t *wr_shift, counter_map_t *count_shift)
+  move_shift_operator::move_shift_operator(qmc_data &data, mc_tools::random_generator &rng, histo_map_t *histos, int nbins,
+                                           weight_ratio_map_t *hist_shift, weight_ratio_map_t *wr_shift, counter_map_t *count_shift)
      : data(data),
        config(data.config),
        rng(rng),
        histo_proposed(add_histo("shift_length_proposed", histos)),
        histo_accepted(add_histo("shift_length_accepted", histos)),
+       hist_shift(hist_shift),
        t1(time_pt(1, config.beta())),
        meas_wr(wr_shift),
+       use_improved_sampling(hist_shift),
+       step_d(config.beta() / double(nbins)),
        step_i(time_pt::Nmax / nbins),
        wr_shift(wr_shift),
        count_shift(count_shift),
@@ -94,6 +97,7 @@ namespace triqs_cthyb {
     time_pt tR, tL;
     int ic_dag = 0, ic = 0;
     int op_pos_in_det;
+    double fac = 1.;
 
     if (det_size > 1) {
 
@@ -129,7 +133,7 @@ namespace triqs_cthyb {
       // Then deduce the closest one and put its distance to op_old in tL
       tL = ((tLdag - tau_old) > (tLnodag - tau_old) ? tLnodag : tLdag);
       // Choose new random time
-      tau_new = tR + data.tau_seg.get_random_pt(rng, tL - tR);
+      if (!use_improved_sampling) tau_new = tR + data.tau_seg.get_random_pt(rng, tL - tR);
 
     } else { // det_size = 1
 
@@ -138,6 +142,98 @@ namespace triqs_cthyb {
       tau_new = data.tau_seg.get_random_pt(rng);
     }
 
+    if (use_improved_sampling) {
+      if (det_size == 1) {
+        tL = tau_old;
+        tR = tau_old;
+      }
+      time_pt shiftL = tL - tau_old;
+      time_pt shiftR = tR - tau_old; // Shift must be in [0,shiftL] or [shiftR,beta]
+      int ibinL = floor_div(shiftL, t1) / step_i;
+      int ibinR = floor_div(shiftR, t1) / step_i;
+      auto &hist = (*hist_shift)[block_name];
+      int nbins = hist.size();
+      double s = 0.0;
+      for (int i = 0; i < ibinL; ++i) s += hist[i] * step_d;
+      s += hist[ibinL] * (double(shiftL) - step_d * ibinL);
+      s += hist[ibinR] * (step_d * (ibinR + 1) - double(shiftR));
+      for (int i = ibinR+1; i < nbins; ++i) s += hist[i] * step_d;
+      if (std::abs(s) <= 1.e-15) return 0; // quick return
+
+      double csum = 0.0;
+      // draw a uniform variable on [0,1]
+      double ran = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1);
+      int ibin = - 1;
+      for (int i = 0; i < ibinL; ++i) {
+        csum += hist[i] * step_d / s;
+        if (csum >= ran) {
+          ibin = i;
+          break;
+        }
+      }
+      if (ibin == -1) {
+        csum += hist[ibinL] * (double(shiftL) - step_d * ibinL) / s;
+        if (csum >= ran) ibin = ibinL;
+      }
+      if (ibin == -1) {
+        csum += hist[ibinR] * (step_d * (ibinR + 1) - double(shiftR)) / s;
+        if (csum >= ran) ibin = ibinR;
+      }
+      if (ibin == -1) {
+        for (int i = ibinR+1; i < nbins; ++i) {
+          csum += hist[i] * step_d / s;
+          if (csum >= ran || i == (nbins-1)) {
+            ibin = i;
+            break;
+          }
+        }
+      }
+      time_pt bin_start  = time_pt(step_i * ibin, config.beta());
+      time_pt bin_finish = time_pt(step_i * (ibin+1), config.beta());
+      if (ibin == nbins - 1) bin_finish = time_pt(time_pt::Nmax, config.beta());
+      time_pt bin_effective_length = time_pt(0, config.beta());
+      if (ibin == ibinL) bin_effective_length = shiftL - bin_start;
+      if (ibin == ibinR) bin_effective_length = bin_effective_length + bin_finish - shiftR; // very important to add to bin_effective_length
+      if (ibin != ibinL && ibin != ibinR) bin_effective_length = bin_finish - bin_start;
+      time_pt shift = data.tau_seg.get_random_pt(rng, bin_effective_length);
+      if (ibin == ibinR) {
+        if (ibin == ibinL) {
+          if (shift > shiftL - bin_start)
+            shift = shift + shiftR - shiftL + bin_start;
+          else
+            shift = shift + bin_start;
+        }
+        else
+          shift = shift + shiftR;
+      }
+      else
+        shift = shift + bin_start;
+      tau_new = tau_old + shift;
+      fac *= s / (bin_effective_length * hist[ibin]);
+      // Now, compute proposal probability to go from tau_new to tau_old
+      shiftL = tL - tau_new;
+      shiftR = tR - tau_new;
+      ibinL = floor_div(shiftL, t1) / step_i;
+      ibinR = floor_div(shiftR, t1) / step_i;
+
+      s = 0.0;
+      for (int i = 0; i < ibinL; ++i) s += hist[i] * step_d;
+      s += hist[ibinL] * (double(shiftL) - step_d * ibinL);
+      s += hist[ibinR] * (step_d * (ibinR + 1) - double(shiftR));
+      for (int i = ibinR+1; i < nbins; ++i) s += hist[i] * step_d;
+
+      ibin = floor_div(-shift, t1) / step_i;
+      if (std::abs(s) <= 1.e-15 || hist[ibin] == 0.0) return 0; // quick return
+      bin_start  = time_pt(step_i * ibin, config.beta());
+      bin_finish = time_pt(step_i * (ibin+1), config.beta());
+      if (ibin == nbins - 1) bin_finish = time_pt(time_pt::Nmax, config.beta());
+      bin_effective_length = time_pt(0, config.beta());
+      if (ibin == ibinL) bin_effective_length = shiftL - bin_start;
+      if (ibin == ibinR) bin_effective_length = bin_effective_length + bin_finish - shiftR;
+      if (ibin != ibinL && ibin != ibinR) bin_effective_length = bin_finish - bin_start;
+
+      fac *= bin_effective_length * hist[ibin] / s;
+    }
     // Record the length of the proposed shift
     dtau = double(tau_new - tau_old);
     if (histo_proposed) *histo_proposed << dtau;
@@ -183,7 +279,7 @@ namespace triqs_cthyb {
     // for quick abandon
     double random_number = rng.preview();
     if (random_number == 0.0) return 0;
-    double p_yee = std::abs(det_ratio / data.atomic_weight);
+    double p_yee = std::abs(fac * det_ratio / data.atomic_weight);
 
     // --- Compute the atomic_weight ratio
     std::tie(new_atomic_weight, new_atomic_reweighting) = data.imp_trace.compute(p_yee, random_number);
@@ -219,7 +315,7 @@ namespace triqs_cthyb {
     std::cerr << "p_yee * newtrace: " << p_yee * new_atomic_weight << std::endl;
 #endif
 
-    return p;
+    return p * fac;
   }
 
   mc_weight_t move_shift_operator::accept() {

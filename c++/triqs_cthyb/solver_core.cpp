@@ -329,9 +329,9 @@ namespace triqs_cthyb {
       std::vector<double> *wr_rem = meas_wr ? get_hist(_weight_ratio_remove,block_name) : nullptr;
       std::vector<int> *count_ins = meas_wr ? get_hist(counter_insert,block_name) : nullptr;
       std::vector<int> *count_rem = meas_wr ? get_hist(counter_remove,block_name) : nullptr;
-      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.nbins_histo,
+      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, nbins,
                                      hist_ins, hist_rem, wr_ins, count_ins), "Insert Delta_" + block_name, prop_prob);
-      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.nbins_histo,
+      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, nbins,
                                      hist_ins, hist_rem, wr_rem, count_rem), "Remove Delta_" + block_name, prop_prob);
       if (params.move_double) {
         for (size_t block2 = 0; block2 < _Delta_tau.size(); ++block2) {
@@ -365,9 +365,22 @@ namespace triqs_cthyb {
           counter_shift[block_name] = std::vector<int>(nbins,0);
         }
       }
+      use_improved_sampling = ! params.hist_shift.empty();
+      if ((use_improved_sampling) && (params.hist_shift.size() != _Delta_tau.size()))
+        TRIQS_RUNTIME_ERROR << "Inconsistency in hist_shift: the first dimension should be equal " <<
+        "to the number of blocks in gf_struct";
+      std::map<std::string, std::vector<double>> *hist_shift = use_improved_sampling ? &params.hist_shift : nullptr;
+      if (use_improved_sampling) {
+        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
+          auto const &block_name = delta_names[block];
+          if ((*hist_shift)[block_name].size() != nbins)
+            TRIQS_RUNTIME_ERROR << "Inconsistency in hist_shift: for each block, you need to provide an array " <<
+            "of size nbins_histo";
+        }
+      }
       weight_ratio_map_t *wr_shift = meas_wr ? &_weight_ratio_shift : nullptr;
       counter_map_t *count_shift = meas_wr ? &counter_shift : nullptr;
-      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map, nbins, wr_shift, count_shift), "Shift one operator", 1.0);
+      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map, nbins, hist_shift, wr_shift, count_shift), "Shift one operator", 1.0);
     }
 
     if (params.move_global.size()) {

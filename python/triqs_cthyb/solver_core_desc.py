@@ -245,6 +245,8 @@ c.add_member(c_name = "solve_parameters",
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | hist_remove                   | dict(list(double))                                       | {}                            | Proposal distribution for the remove move                                                                         |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
+| hist_shift                   | dict(list(double))                                       | {}                            | Proposal distribution for the shift move                                                                         |
++-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | move_global                   | dict(str : dict(indices : indices))                      | {}                            | List of global moves (with their names). Each move is specified with an index substitution dictionary.            |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | move_global_prob              | double                                                   | 0.05                          | Overall probability of the global moves                                                                           |
@@ -616,6 +618,13 @@ c.add_member(c_name = "hist_remove",
              doc = r"""Proposal distribution for the remove move
      type: dict(list(double))
      default: {}""")
+
+c.add_member(c_name = "hist_shift",
+             c_type = "std::map<std::string, std::vector<double>>",
+             initializer = """ {} """,
+             doc = r"""Proposal distribution for the shift move
+      type: dict(list(double))
+      default: {}""")
 
 c.add_member(c_name = "move_global",
              c_type = "std::map<std::string, indices_map_t>",

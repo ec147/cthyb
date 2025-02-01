@@ -37,8 +37,10 @@ namespace triqs_cthyb {
     op_desc op_old, op_new;
     using det_type = det_manip::det_manip<qmc_data::delta_block_adaptor>;
     det_type::RollDirection roll_direction;
+    weight_ratio_map_t *hist_shift;
     const time_pt t1;
-    bool meas_wr;
+    bool meas_wr, use_improved_sampling;
+    double step_d;
     const uint64_t step_i;
     weight_ratio_map_t *wr_shift;
     counter_map_t *count_shift;
@@ -48,7 +50,7 @@ namespace triqs_cthyb {
 
     public:
     move_shift_operator(qmc_data &data, mc_tools::random_generator &rng, histo_map_t *histos,
-                        int nbins, weight_ratio_map_t *wr_shift, counter_map_t *count_shift);
+                        int nbins, weight_ratio_map_t *hist_shift, weight_ratio_map_t *wr_shift, counter_map_t *count_shift);
     mc_weight_t attempt();
     mc_weight_t accept();
     void reject();
