@@ -525,13 +525,13 @@ namespace triqs_cthyb {
          labels.push_back("shift");
          labels.push_back("shift_dag");
        }
-       for (int i = 0; i < labels.size(); ++i) {
+       for (auto const &move : labels) {
          for (auto const &block_name : _Delta_tau.block_names()) {
-           mpi::all_reduce(counter[labels[i]][block_name], _comm);
-	   mpi::all_reduce(_weight_ratio[labels[i]][block_name], _comm);
-	   for (int j = 0; j < nbins; ++i) {
-             int c = counter[labels[i]][block_name][j];
-             if (c > 0) _weight_ratio[labels[i]][block_name][j] /= c;
+           mpi::all_reduce(counter[move][block_name], _comm);
+	   mpi::all_reduce(_weight_ratio[move][block_name], _comm);
+	   for (int j = 0; j < nbins; ++j) {
+             int c = counter[move][block_name][j];
+             if (c > 0) _weight_ratio[move][block_name][j] /= c;
            }
 	 }
        }
