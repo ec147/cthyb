@@ -31,7 +31,7 @@ namespace triqs_cthyb {
 
   move_insert_c_cdag::move_insert_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data,
                                          mc_tools::random_generator &rng, histo_map_t *histos, int nbins,
-                                         std::vector<double> const *hist_insert, std::vector<double> const *hist_remove, 
+                                         std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
 					 std::vector<double> *wr_insert, std::vector<int> *count_insert)
      : data(data),
        config(data.config),
@@ -48,7 +48,7 @@ namespace triqs_cthyb {
        step_i(time_pt::Nmax / nbins),
        t1(time_pt(1, config.beta())),
        use_improved_sampling(hist_insert && hist_remove),
-       wr_insert(wr_insert) {} 
+       wr_insert(wr_insert) {}
 
   mc_weight_t move_insert_c_cdag::attempt() {
 
@@ -72,13 +72,13 @@ namespace triqs_cthyb {
     double fac = 1.;
     if (use_improved_sampling) {
       // first choose the bin, each bin being weighted by the probability hist_insert[bin]*length(bin)
-      double ran  = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1); // random number in [0,1]
-      double csum = 0;
+      double ran  = rng();
+      double csum = 0.;
       int nbins = (*hist_insert).size();
       int ibin = 0;
       for (int i = 0; i < nbins; ++i) {
         csum += (*hist_insert)[i] * step_d;
-        if (csum >= ran || i == (nbins - 1) ) {
+        if (csum >= ran || i == (nbins-1) ) {
           ibin = i;
           break;
         }
@@ -87,7 +87,7 @@ namespace triqs_cthyb {
       time_pt bin_start  = time_pt(step_i * ibin, config.beta());
       time_pt bin_finish = time_pt(step_i * (ibin+1), config.beta());
       if (ibin == nbins - 1) bin_finish = time_pt(time_pt::Nmax, config.beta());
-      
+
       // now draw a time point uniformly within this bin
       tau1 = tau2 + data.tau_seg.get_random_pt(rng, bin_start, bin_finish);
 
@@ -96,7 +96,7 @@ namespace triqs_cthyb {
       // where the sum is performed over all creation operators of the current block, including the trial one
       int ind;
       double s = (*hist_remove)[ibin]; // normalization constant = sum_i(hist_remove(bin(tau_i - tau2)))
-      time_pt dtau_r; 
+      time_pt dtau_r;
 
       for (int i = 0; i < det_size; ++i) {
         dtau_r = det.get_x(i).first - tau2;
@@ -176,8 +176,8 @@ namespace triqs_cthyb {
 
     mc_weight_t p = atomic_weight_ratio * det_ratio;
 
-    if (meas_wr) { 
-      int ibin = floor_div(tau1 - tau2, t1) / step_i; 
+    if (meas_wr) {
+      int ibin = floor_div(tau1 - tau2, t1) / step_i;
       (*wr_insert)[ibin] += std::abs(p);
       (*count_insert)[ibin] ++;
     }
@@ -197,14 +197,14 @@ namespace triqs_cthyb {
       std::cerr << "Prefactor: " << t_ratio << '\t';
       std::cerr << "Weight: " << p * t_ratio << std::endl;
       std::cerr << "p_yee * newtrace: " << p_yee * new_atomic_weight << std::endl;
-      
+
       TRIQS_RUNTIME_ERROR << "(insert) p * t_ratio not finite p : " << p << " t_ratio : " << t_ratio << " in config " << config.get_id();
     }
     return p * t_ratio;
   }
 
   mc_weight_t move_insert_c_cdag::accept() {
-	  
+
     time_pt tau_min = std::min(tau1,tau2);
     time_pt tau_max = std::max(tau1,tau2);
     if (tau_min < data.imp_trace.min_tau) data.imp_trace.min_tau = tau_min;

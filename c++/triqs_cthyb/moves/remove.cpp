@@ -31,7 +31,7 @@ namespace triqs_cthyb {
 
   move_remove_c_cdag::move_remove_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data, mc_tools::random_generator &rng,
                                          histo_map_t *histos, int nbins, std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-					 std::vector<double> *wr_remove, std::vector<int> *count_remove) 
+					 std::vector<double> *wr_remove, std::vector<int> *count_remove)
      : data(data),
        config(data.config),
        rng(rng),
@@ -65,7 +65,9 @@ namespace triqs_cthyb {
     // Remove the operators from the traces
     int det_size = det.size();
     if (det_size == 0) return 0; // nothing to remove
-    int num_c_dag = rng(det_size), num_c = rng(det_size);
+    int num_c_dag, num_c;
+    num_c = rng(det_size);
+    if (!use_improved_sampling) num_c_dag = rng(det_size);
 
 #ifdef EXT_DEBUG
     std::cerr << "* Proposing to remove: ";
@@ -80,7 +82,6 @@ namespace triqs_cthyb {
       // choose the creation operator to remove, weighted by probability
       // hist_remove[bin(tau2-tau1)] / sum_i(hist_remove(bin(tau_i - tau1)))
       double s = 0;   // normalization constant sum_i(hist_remove(bin(tau_i - tau1)))
-      int nbins = (*hist_insert).size();
       if (det_size > Nmax) {
         Nmax *= 2;
         bins.reserve(Nmax);
@@ -99,12 +100,12 @@ namespace triqs_cthyb {
       if (std::abs(s) <= 1.e-15) return 0; // quick return
 
       // draw a uniform variable on [0,1]
-      double ran = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1);
+      double ran = rng();
       // choose the creation operator
-      double csum = 0;
+      double csum = 0.;
       for (int i = 0; i < det_size; ++i) {
         csum += (*hist_remove)[bins[i]] / s;
-        if (csum >= ran || i == (nbins-1)) {
+        if (csum >= ran || i == (det_size-1)) {
           num_c_dag = i;
           break;
         }
@@ -114,7 +115,7 @@ namespace triqs_cthyb {
       tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
 
       // compute the probability of proposing the current config from the trial one
-      // this is simply hist_insert[bin(tau2-tau1)] 
+      // this is simply hist_insert[bin(tau2-tau1)]
       int ibin = bins[num_c_dag];
       if ((*hist_insert)[ibin] == 0.0) return 0; // quick return
       fac = s * config.beta() * (*hist_insert)[ibin]  / (double(det_size) * (*hist_remove)[ibin]);
@@ -146,7 +147,7 @@ namespace triqs_cthyb {
         int ibin = floor_div(tau2 - tau1, t1) / step_i;
         (*wr_remove)[ibin] += std::abs(det_ratio * new_atomic_reweighting);
         (*count_remove)[ibin] ++;
-      } 
+      }
       return 0;
     }
     auto atomic_weight_ratio = new_atomic_weight / data.atomic_weight;
@@ -177,7 +178,7 @@ namespace triqs_cthyb {
       std::cerr << "Weight: " << p * t_ratio << std::endl;
       TRIQS_RUNTIME_ERROR << "(remove) p not finite :" << p << " in config " << config.get_id();
     }
-    
+
     if (!isfinite(p * t_ratio)){
       TRIQS_RUNTIME_ERROR << "(remove) p * t_ratio not finite p : " << p << " t_ratio :  " << t_ratio << " in config " << config.get_id();
     }
@@ -185,7 +186,7 @@ namespace triqs_cthyb {
   }
 
   mc_weight_t move_remove_c_cdag::accept() {
-	  
+
     time_pt tau_min = std::min(tau1,tau2);
     time_pt tau_max = std::max(tau1,tau2);
     if (tau_min < data.imp_trace.min_tau) data.imp_trace.min_tau = tau_min;

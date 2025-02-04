@@ -313,9 +313,7 @@ namespace triqs_cthyb {
         // Normalize hist_ins
         double s = 0;
         double step = beta / nbins;
-        for (int i = 0; i < nbins; ++i)
-          s += (*hist_ins)[i];
-	s *= step;
+        for (int i = 0; i < nbins; ++i) s += step * (*hist_ins)[i];
         if (std::abs(s) < 1.e-15) TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert: please provide a non-zero distribution";
         for (auto &elem : (*hist_ins)) elem /= s;
       }

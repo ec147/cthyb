@@ -144,7 +144,7 @@ namespace triqs_cthyb {
 
       op_pos_in_det = 0;
       // Choose new random time, can be anywhere between beta and 0
-      tau_new = data.tau_seg.get_random_pt(rng);
+      if (!use_improved_sampling) tau_new = data.tau_seg.get_random_pt(rng);
     }
 
     if (use_improved_sampling) {
@@ -167,7 +167,7 @@ namespace triqs_cthyb {
 
       double csum = 0.0;
       // draw a uniform variable on [0,1]
-      double ran = double(rng(time_pt::Nmax)) / double(time_pt::Nmax - 1);
+      double ran = rng();
       int ibin = - 1;
       for (int i = 0; i < ibinL; ++i) {
         csum += hist[i] * step_d / s;
