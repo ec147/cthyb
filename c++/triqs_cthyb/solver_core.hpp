@@ -57,7 +57,7 @@ namespace triqs_cthyb {
     int _solve_status;                     // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
     configuration _configuration;          // Final configuration of the run
 
-    weight_ratio_map_t _weight_ratio_insert, _weight_ratio_remove, _weight_ratio_shift; // Weight ratios for each move and each time bin
+    std::map<std::string, weight_ratio_map_t> _weight_ratio; // Weight ratios for each move and each time bin
 
     // Single-particle Green's function containers
     std::optional<G_iw_t> _G0_iw; // Non-interacting Matsubara Green's function
@@ -164,14 +164,8 @@ namespace triqs_cthyb {
     /// Configuration
     configuration const &get_configuration() const { return _configuration; }
 
-    /// Weight ratio insert
-    weight_ratio_map_t const &get_weight_ratio_insert() const { return _weight_ratio_insert; }
-
-    /// Weight ratio remove
-    weight_ratio_map_t const &get_weight_ratio_remove() const { return _weight_ratio_remove; }
-
-    /// Weight ratio shift
-    weight_ratio_map_t const &get_weight_ratio_shift() const { return _weight_ratio_shift; }
+    /// Weight ratio
+    std::map<std::string, weight_ratio_map_t> const &get_weight_ratio() const { return _weight_ratio; }
 
     /// is cthyb compiled with support for complex hybridization?
     bool hybridisation_is_complex() const {
@@ -215,9 +209,7 @@ namespace triqs_cthyb {
       h5_write(grp, "update_time", s._update_time);
       h5_write(grp, "solve_status", s._solve_status);
       h5_write(grp, "Delta_infty_vec", s.Delta_infty_vec);
-      h5_write(grp, "weight_ratio_insert", s._weight_ratio_insert);
-      h5_write(grp, "weight_ratio_remove", s._weight_ratio_remove);
-      h5_write(grp, "weight_ratio_shift", s._weight_ratio_shift);
+      h5_write(grp, "weight_ratio", s._weight_ratio);
     }
 
     // Function that read all containers to hdf5 file
@@ -240,9 +232,7 @@ namespace triqs_cthyb {
       h5::try_read(grp, "update_time", s._update_time);
       h5::try_read(grp, "solve_status", s._solve_status);
       h5::try_read(grp, "Delta_infty_vec", s.Delta_infty_vec);
-      h5::try_read(grp, "weight_ratio_insert", s._weight_ratio_insert);
-      h5::try_read(grp, "weight_ratio_remove", s._weight_ratio_remove);
-      h5::try_read(grp, "weight_ratio_shift", s._weight_ratio_shift);
+      h5::try_read(grp, "weight_ratio", s._weight_ratio);
 
       return s;
     }

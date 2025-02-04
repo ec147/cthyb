@@ -30,20 +30,25 @@ namespace triqs_cthyb {
   }
 
   move_shift_operator::move_shift_operator(qmc_data &data, mc_tools::random_generator &rng, histo_map_t *histos, int nbins,
-                                           weight_ratio_map_t *hist_shift, weight_ratio_map_t *wr_shift, counter_map_t *count_shift)
+                                           weight_ratio_map_t *hist_shift, weight_ratio_map_t *hist_shift_dag,
+                                           weight_ratio_map_t *wr_shift, weight_ratio_map_t *wr_shift_dag,
+                                           counter_map_t *count_shift, counter_map_t *count_shift_dag)
      : data(data),
        config(data.config),
        rng(rng),
        histo_proposed(add_histo("shift_length_proposed", histos)),
        histo_accepted(add_histo("shift_length_accepted", histos)),
        hist_shift(hist_shift),
+       hist_shift_dag(hist_shift_dag),
        t1(time_pt(1, config.beta())),
        meas_wr(wr_shift),
        use_improved_sampling(hist_shift),
        step_d(config.beta() / double(nbins)),
        step_i(time_pt::Nmax / nbins),
        wr_shift(wr_shift),
+       wr_shift_dag(wr_shift_dag),
        count_shift(count_shift),
+       count_shift_dag(count_shift_dag),
        block_index(0) {}
 
   mc_weight_t move_shift_operator::attempt() {
@@ -151,7 +156,7 @@ namespace triqs_cthyb {
       time_pt shiftR = tR - tau_old; // Shift must be in [0,shiftL] or [shiftR,beta]
       int ibinL = floor_div(shiftL, t1) / step_i;
       int ibinR = floor_div(shiftR, t1) / step_i;
-      auto &hist = (*hist_shift)[block_name];
+      auto &hist = is_dagger ? (*hist_shift_dag)[block_name] : (*hist_shift)[block_name] ;
       int nbins = hist.size();
       double s = 0.0;
       for (int i = 0; i < ibinL; ++i) s += hist[i] * step_d;
@@ -289,8 +294,14 @@ namespace triqs_cthyb {
 #endif
       if (meas_wr) {
         int ibin = floor_div(tau_new - tau_old, t1) / step_i;
-        (*wr_shift)[block_name][ibin] += std::abs(det_ratio * new_atomic_reweighting);
-        (*count_shift)[block_name][ibin] ++;
+        if (is_dagger) {
+          (*wr_shift_dag)[block_name][ibin] += std::abs(det_ratio * new_atomic_reweighting);
+          (*count_shift_dag)[block_name][ibin] ++;
+        }
+        else {
+          (*wr_shift)[block_name][ibin] += std::abs(det_ratio * new_atomic_reweighting);
+          (*count_shift)[block_name][ibin] ++;
+        }
       }
       return 0;
     }
@@ -304,8 +315,14 @@ namespace triqs_cthyb {
 
     if (meas_wr) {
       int ibin = floor_div(tau_new - tau_old, t1) / step_i;
-      (*wr_shift)[block_name][ibin] += std::abs(p);
-      (*count_shift)[block_name][ibin] ++;
+      if (is_dagger) {
+        (*wr_shift_dag)[block_name][ibin] += std::abs(p);
+        (*count_shift_dag)[block_name][ibin] ++;
+      }
+      else {
+        (*wr_shift)[block_name][ibin] += std::abs(p);
+        (*count_shift)[block_name][ibin] ++;
+      }
     }
 
 #ifdef EXT_DEBUG

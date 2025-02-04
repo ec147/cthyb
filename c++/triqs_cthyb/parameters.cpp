@@ -135,9 +135,7 @@ namespace triqs_cthyb {
     h5_write(grp, "proposal_prob", sp.proposal_prob);
 
     h5_write(grp, "nbins_histo", sp.nbins_histo);
-    h5_write(grp, "hist_insert", sp.hist_insert);
-    h5_write(grp, "hist_remove", sp.hist_remove);
-    h5_write(grp, "hist_shift", sp.hist_shift);
+    h5_write(grp, "hist", sp.hist);
 
     //h5_write(grp, "move_global", sp.move_global);
     if( sp.move_global.size() != 0 )
@@ -209,9 +207,7 @@ namespace triqs_cthyb {
     h5_read(grp, "proposal_prob", sp.proposal_prob);
 
     h5_read(grp, "nbins_histo", sp.nbins_histo);
-    h5_read(grp, "hist_insert", sp.hist_insert);
-    h5_read(grp, "hist_remove", sp.hist_remove);
-    h5_read(grp, "hist_shift", sp.hist_shift);
+    h5_read(grp, "hist", sp.hist);
 
     //h5_read(grp, "move_global", sp.move_global);
     if( grp.has_key("move_global") )
