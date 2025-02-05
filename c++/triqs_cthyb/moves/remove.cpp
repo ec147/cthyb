@@ -66,8 +66,8 @@ namespace triqs_cthyb {
     int det_size = det.size();
     if (det_size == 0) return 0; // nothing to remove
     int num_c_dag, num_c;
-    num_c = rng(det_size);
     if (!use_improved_sampling) num_c_dag = rng(det_size);
+    num_c = rng(det_size);
 
 #ifdef EXT_DEBUG
     std::cerr << "* Proposing to remove: ";
