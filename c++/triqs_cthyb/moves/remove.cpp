@@ -97,7 +97,7 @@ namespace triqs_cthyb {
       }
 
       data.imp_trace.cancel_delete();
-      if (std::abs(s) <= 1.e-15) return 0; // quick return
+      if (std::abs(s) == 0.0) return 0; // quick return
 
       // draw a uniform variable on [0,1]
       double ran = rng();

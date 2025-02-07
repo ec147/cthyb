@@ -105,7 +105,7 @@ namespace triqs_cthyb {
       }
 
       // corrective factor for t_ratio
-      if (std::abs(s) < 1.e-15 || (*hist_remove)[ibin] == 0.0) return 0; // quick return
+      if ((*hist_remove)[ibin] == 0.0) return 0; // quick return
       fac = double(data.dets[block_index].size() + 1) * (*hist_remove)[ibin] / (s * config.beta() * (*hist_insert)[ibin]);
     }
 

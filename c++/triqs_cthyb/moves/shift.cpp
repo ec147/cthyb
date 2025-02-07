@@ -163,7 +163,7 @@ namespace triqs_cthyb {
       s += hist[ibinL] * (double(shiftL) - step_d * ibinL);
       s += hist[ibinR] * (step_d * (ibinR + 1) - double(shiftR));
       for (int i = ibinR+1; i < nbins; ++i) s += hist[i] * step_d;
-      if (std::abs(s) <= 1.e-15) return 0; // quick return
+      if (std::abs(s) == 0.0) return 0; // quick return
 
       double csum = 0.0;
       // draw a uniform variable on [0,1]
@@ -228,7 +228,7 @@ namespace triqs_cthyb {
       for (int i = ibinR+1; i < nbins; ++i) s += hist[i] * step_d;
 
       ibin = floor_div(-shift, t1) / step_i;
-      if (std::abs(s) <= 1.e-15 || hist[ibin] == 0.0) return 0; // quick return
+      if (hist[ibin] == 0.0) return 0; // quick return
       bin_start  = time_pt(step_i * ibin, config.beta());
       bin_finish = time_pt(step_i * (ibin+1), config.beta());
       if (ibin == nbins - 1) bin_finish = time_pt(time_pt::Nmax, config.beta());
