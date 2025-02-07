@@ -40,9 +40,9 @@ namespace triqs_cthyb {
         z += data.n_acc * old_z;
         mc_weight_t s_temp = data.n_acc * old_s;
         int size = block_dm.size();
-        for (int i = 0; i < size; ++i) 
+        for (int i = 0; i < size; ++i)
           if (data.imp_trace.get_density_matrix()[i].is_valid) { block_dm[i] += s_temp * data.imp_trace.get_density_matrix()[i].mat; }
-      }	
+      }
       data.imp_trace.compute(-1,0,true);
       old_z = s * data.atomic_reweighting;
       old_s = s / data.atomic_weight;
@@ -53,19 +53,19 @@ namespace triqs_cthyb {
   // ---------------------------------------------
 
   void measure_density_matrix::collect_results(mpi::communicator const &c) {
-    
+
     z += data.n_acc * old_z;
     mc_weight_t s_temp = data.n_acc * old_s;
     int size = block_dm.size();
     for (int i = 0; i < size; ++i)
       if (data.imp_trace.get_density_matrix()[i].is_valid) { block_dm[i] += s_temp * data.imp_trace.get_density_matrix()[i].mat; }
-  
+
     z                          = mpi::all_reduce(z, c);
     block_dm                   = mpi::all_reduce(block_dm, c);
     for (auto &b : block_dm){
         // Normalize
         b /= real(z);
-        
+
         // Enforce hermiticity
         b = make_regular(0.5*(b + dagger(b)));
     }

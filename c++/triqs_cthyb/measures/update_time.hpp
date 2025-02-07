@@ -46,7 +46,7 @@ namespace triqs_cthyb {
         N = 1;
         update_time = data.n_acc;
       }
-	    
+
       N = mpi::all_reduce(N, comm);
 
       // Reduce and normalize
