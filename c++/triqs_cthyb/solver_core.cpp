@@ -36,6 +36,7 @@
 #include "./moves/double_remove.hpp"
 #include "./moves/shift.hpp"
 #include "./moves/global.hpp"
+#include "./moves/mirror.hpp"
 #include "./measures/G_tau.hpp"
 #include "./measures/G_l.hpp"
 #include "./measures/O_tau_ins.hpp"
@@ -398,6 +399,8 @@ namespace triqs_cthyb {
       }
       qmc.add_move(std::move(global), "Global moves", params.move_global_prob);
     }
+
+    if (params.move_mirror_prob > 0.) qmc.add_move(move_mirror(data, qmc.get_rng()), "Mirror", params.move_mirror_prob);
 
     // --------------------------------------------------------------------------
     // Measurements

@@ -475,6 +475,66 @@ namespace triqs_cthyb {
       check_cache_integrity();
     }
 
+    /*************************************************************************
+     * Node and key replacement (replace op_desc and key according to a substitution table)
+     *************************************************************************/
+    private:
+
+    node try_mirror_impl(node n, std::map<time_pt, std::pair<time_pt, op_desc>> const &updated_ops) {
+
+      node new_left = nullptr, new_right = nullptr;
+      if (n->left)  new_left  = try_mirror_impl(n->left,  updated_ops);
+      if (n->right) new_right = try_mirror_impl(n->right, updated_ops);
+
+      auto it = updated_ops.find(n->key);
+      if (it == updated_ops.end()) TRIQS_RUNTIME_ERROR << "impurity_trace: improper use of try_mirror";
+      auto const &new_key = it->second.first;
+      auto const &new_op  = it->second.second;
+      auto color = n->color;
+      auto N     = n->N;
+
+      auto new_node = backup_nodes.swap_next(n);
+      new_node->reset(new_key, new_op);
+      new_node->left     = new_left;
+      new_node->right    = new_right;
+      new_node->color    = color;
+      new_node->N        = N;
+      new_node->modified = true;
+      return new_node;
+    }
+
+    node cancel_mirror_impl(node n) {
+      node n_in_tree = n;
+      if (n_in_tree) n = backup_nodes.swap_prev(n);
+      if (n_in_tree->right) cancel_mirror_impl(n_in_tree->right);
+      if (n_in_tree->left)  cancel_mirror_impl(n_in_tree->left);
+      return n;
+    }
+
+    public:
+    void try_mirror(std::map<time_pt, std::pair<time_pt, op_desc>> const &updated_ops) {
+      if (tree_size == 0) return;
+
+      if (!backup_nodes.is_index_reset()) TRIQS_RUNTIME_ERROR << "impurity_trace: improper use of try_mirror()";
+      backup_nodes.reserve(tree.size());
+      auto &root = tree.get_root();
+      root       = try_mirror_impl(root, updated_ops);
+    }
+
+    void confirm_mirror() {
+      backup_nodes.reset_index();
+      update_cache();
+      tree.clear_modified();
+      check_cache_integrity();
+    }
+
+    void cancel_mirror() {
+      if (tree_size == 0 || backup_nodes.is_index_reset()) return;
+      auto &root = tree.get_root();
+      root       = cancel_mirror_impl(root);
+      check_cache_integrity();
+    }
+
     private:
     // ---------------- Histograms ----------------
     struct histograms_t {
