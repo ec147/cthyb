@@ -214,7 +214,7 @@ namespace triqs_cthyb {
       else
         shift = shift + bin_start;
       tau_new = tau_old + shift;
-      fac *= s / (bin_effective_length * hist[ibin]);
+      fac *= s / hist[ibin];
       // Now, compute proposal probability to go from tau_new to tau_old
       shiftL = tL - tau_new;
       shiftR = tR - tau_new;
@@ -229,15 +229,8 @@ namespace triqs_cthyb {
 
       ibin = floor_div(-shift, t1) / step_i;
       if (hist[ibin] == 0.0) return 0; // quick return
-      bin_start  = time_pt(step_i * ibin, config.beta());
-      bin_finish = time_pt(step_i * (ibin+1), config.beta());
-      if (ibin == nbins - 1) bin_finish = time_pt(time_pt::Nmax, config.beta());
-      bin_effective_length = time_pt(0, config.beta());
-      if (ibin == ibinL) bin_effective_length = shiftL - bin_start;
-      if (ibin == ibinR) bin_effective_length = bin_effective_length + bin_finish - shiftR;
-      if (ibin != ibinL && ibin != ibinR) bin_effective_length = bin_finish - bin_start;
 
-      fac *= bin_effective_length * hist[ibin] / s;
+      fac *= hist[ibin] / s;
     }
     // Record the length of the proposed shift
     dtau = double(tau_new - tau_old);
