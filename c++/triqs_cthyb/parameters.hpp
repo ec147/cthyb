@@ -232,6 +232,9 @@ namespace triqs_cthyb {
     /// Overall probability of mirror move
     double move_mirror_prob = 0.;
 
+    /// Overall proposal probability for Pauli-aware insert and remove
+    double pauli_prob = 0.;
+
     /// Threshold below which imaginary components of Delta and h_loc are set to zero
     double imag_threshold = 1.e-13;
 

@@ -32,7 +32,7 @@ namespace triqs_cthyb {
   move_insert_c_cdag::move_insert_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data,
                                          mc_tools::random_generator &rng, histo_map_t *histos, int nbins,
                                          std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-					 std::vector<double> *wr_insert, std::vector<int> *count_insert)
+					 std::vector<double> *wr_insert, std::vector<int> *count_insert, double pauli_prob)
      : data(data),
        config(data.config),
        rng(rng),
@@ -48,7 +48,12 @@ namespace triqs_cthyb {
        step_i(time_pt::Nmax / nbins),
        t1(time_pt(1, config.beta())),
        use_improved_sampling(hist_insert && hist_remove),
-       wr_insert(wr_insert) {}
+       wr_insert(wr_insert),
+       pauli_prob(pauli_prob),
+       Nmax(100),
+       beta(time_pt(time_pt::Nmax, config.beta())) {
+         if (pauli_prob > 0.0) vec_ind.reserve(Nmax);
+       }
 
   mc_weight_t move_insert_c_cdag::attempt() {
 
@@ -58,8 +63,15 @@ namespace triqs_cthyb {
     std::cerr << "* Attempt for move_insert_c_cdag (block " << block_index << ")" << std::endl;
 #endif
 
+    bool pauli_move = false;
+    if (pauli_prob > 0.0) {
+      double ran = rng();
+      if (ran <= pauli_prob) pauli_move = true;
+    }
+
     // Pick up the value of alpha and choose the operators
-    auto rs1 = rng(block_size), rs2 = rng(block_size);
+    auto rs1 = rng(block_size);
+    auto rs2 = (pauli_move ? rs1 : rng(block_size));
     op1 = op_desc{block_index, rs1, true, data.linindex[std::make_pair(block_index, rs1)]};
     op2 = op_desc{block_index, rs2, false, data.linindex[std::make_pair(block_index, rs2)]};
 
@@ -68,8 +80,91 @@ namespace triqs_cthyb {
 
     // Choice of times for insertion. Find the time as double and them put them on the grid.
     if (!use_improved_sampling) tau1 = data.tau_seg.get_random_pt(rng);
-    tau2 = data.tau_seg.get_random_pt(rng);
+    if (pauli_prob == 0.0 || rs1 != rs2) tau2 = data.tau_seg.get_random_pt(rng);
     double fac = 1.;
+
+    if (pauli_prob > 0.0 && rs1 == rs2) {
+
+      int ic_dagL = -1, ic_dagR = -1, ic_nodagL = -1, ic_nodagR = -1;
+
+      if (det_size > Nmax) {
+        while (det_size > Nmax) Nmax *= 2;
+        vec_ind.reserve(Nmax);
+      }
+      vec_ind.clear();
+
+      int j = 0, op_pos = -1;
+
+      // Look at position of tau1 among creation operators of the same flavor
+      for (int i = 0; i < det_size; ++i) {
+        if (det.get_x(i).first < tau1 && op_pos == -1) op_pos = j;
+        if (det.get_x(i).second != rs1) continue;
+        vec_ind.push_back(i);
+        ++j;
+      }
+
+      int size = vec_ind.size();
+
+      if (op_pos == -1) op_pos = size;
+
+      // Creation operators at the left and right of tau1
+      if (size != 0) {
+        ic_dagR = (op_pos == size ? vec_ind[0] : vec_ind[op_pos]);
+        ic_dagL = (op_pos == 0 ? vec_ind[size-1] : vec_ind[op_pos-1]);
+      }
+
+      vec_ind.clear();
+      j = 0, op_pos = -1;
+
+      // Look at position of tau1 among annihilation operators of the same flavor
+      for (int i = 0; i < det_size; ++i) {
+        if (det.get_y(i).first < tau1 && op_pos == -1) op_pos = j;
+        if (det.get_y(i).second != rs1) continue;
+        vec_ind.push_back(i);
+        ++j;
+      }
+
+      size = vec_ind.size();
+      if (op_pos == -1) op_pos = size;
+
+      // Annihilation operators at the left and right of tau1
+      if (size != 0) {
+        ic_nodagR = (op_pos == size ? vec_ind[0] : vec_ind[op_pos]);
+        ic_nodagL = (op_pos == 0 ? vec_ind[size-1] : vec_ind[op_pos-1]);
+      }
+
+      if (ic_nodagR != -1 && ic_dagR != -1) {
+
+        auto tRdag   = det.get_x(ic_dagR).first;
+        auto tRnodag = det.get_y(ic_nodagR).first;
+
+        auto tLdag   = det.get_x(ic_dagL).first;
+        auto tLnodag = det.get_y(ic_nodagL).first;
+
+        auto tR = ((tau1 - tRdag) > (tau1 - tRnodag) ? tRnodag : tRdag);
+        auto tL = ((tLdag - tau1) > (tLnodag - tau1) ? tLnodag : tLdag);
+
+        if (pauli_move) {
+          if (tR == tRdag)
+            tau2 = tR + data.tau_seg.get_random_pt(rng, tau1 - tR);
+          else
+            tau2 = tau1 + data.tau_seg.get_random_pt(rng, tL - tau1);
+        }
+        else {
+          if (tR == tRdag) {
+            tau2 = data.tau_seg.get_random_pt(rng, tR + beta - tau1);
+            if (tau2 >= tR) tau2 = tau2 - tR + tau1;
+          }
+          else {
+            tau2 = data.tau_seg.get_random_pt(rng, tau1 + beta - tL);
+            if (tau2 >= tau1) tau2 = tau2 - tau1 + tL;
+          }
+        }
+      }
+      else // if no operators of the same flavor
+        tau2 = data.tau_seg.get_random_pt(rng);
+    }
+
     if (use_improved_sampling) {
       // first choose the bin, each bin being weighted by the probability hist_insert[bin]*length(bin)
       double ran  = rng();

@@ -31,7 +31,7 @@ namespace triqs_cthyb {
 
   move_remove_c_cdag::move_remove_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data, mc_tools::random_generator &rng,
                                          histo_map_t *histos, int nbins, std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-					 std::vector<double> *wr_remove, std::vector<int> *count_remove)
+					 std::vector<double> *wr_remove, std::vector<int> *count_remove, double pauli_prob)
      : data(data),
        config(data.config),
        rng(rng),
@@ -47,7 +47,8 @@ namespace triqs_cthyb {
        step_i(time_pt::Nmax / nbins),
        t1(time_pt(1, config.beta())),
        use_improved_sampling(hist_insert && hist_remove),
-       wr_remove(wr_remove)	{
+       wr_remove(wr_remove),
+       pauli_prob(pauli_prob)	{
          bins.reserve(Nmax);
        }
 
@@ -67,7 +68,7 @@ namespace triqs_cthyb {
     if (det_size == 0) return 0; // nothing to remove
     int num_c_dag, num_c;
     if (!use_improved_sampling) num_c_dag = rng(det_size);
-    num_c = rng(det_size);
+    if (pauli_prob == 0.0) num_c = rng(det_size);
 
 #ifdef EXT_DEBUG
     std::cerr << "* Proposing to remove: ";
@@ -76,7 +77,7 @@ namespace triqs_cthyb {
 #endif
 
     // now mark 2 nodes for deletion
-    tau1 = data.imp_trace.try_delete(num_c, block_index, false);
+    if (pauli_prob == 0.0) tau1 = data.imp_trace.try_delete(num_c, block_index, false);
     double fac = 1.;
     if (use_improved_sampling) {
       // choose the creation operator to remove, weighted by probability
@@ -122,6 +123,96 @@ namespace triqs_cthyb {
     }
     else
       tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
+
+    if (pauli_prob > 0.0) {
+
+      int rs_dag = det.get_x(num_c_dag).second;
+
+      if (det_size > Nmax) {
+        while (det_size > Nmax) Nmax *= 2;
+        vec_ind.reserve(Nmax);
+      }
+      vec_ind.clear();
+
+      // Look at position of tau2 among annihilation operators of the same flavor
+      int j = 0; op_pos = -1;
+      for (int i = 0; i < det_size; ++i) {
+        if (det.get_y(i).first < tau2 && op_pos == -1) op_pos = i;
+        if (det.get_y(i).second != rs_dag) continue;
+        vec_ind.push_back(i);
+        ++j;
+      }
+
+      int size = vec_ind.size();
+
+      if (op_pos == -1) op_pos = size;
+
+      int ic_nodagR = -1, ic_nodagL = -1, num_pauli = 0;
+
+      if (size != 0) {
+        ic_nodagR = (op_pos == size ? 0 : op_pos);
+        ic_nodagL = (op_pos == 0 ? size - 1 : op_pos - 1);
+        num_pauli = (ic_nodagR == ic_nodagL ? 1 : 2);
+      }
+
+      if (num_pauli > 0) {
+        double ran = rng();
+        bool pauli_move = (ran <= pauli_prob);
+        if (pauli_move) {
+          if (num_pauli == 1)
+            num_c = ic_nodagR;
+          else {
+            int ran_pauli = rng(2);
+            num_c = (ran_pauli == 0 ? vec_ind[ic_nodagR] : vec_ind[ic_nodagL]);
+          }
+        }
+        else {
+          int ran_pauli = rng(det_size - num_pauli);
+
+          int i1 = std::min(vec_ind[ic_nodagL],vec_ind[ic_nodagR]);
+          int i2 = std::max(vec_ind[ic_nodagL],vec_ind[ic_nodagR]);
+
+          if (ran_pauli < i1) num_c = ran;
+          if (i1 <= ran_pauli && ran_pauli < i2 - 1) num_c = ran_pauli + 1;
+          if (i2 <= ran_pauli + 1) num_c = ran_pauli + num_pauli;
+        }
+      }
+      else
+        num_c = rng(det_size);
+
+      tau1 = data.imp_trace.try_delete(num_c, block_index, false);
+
+      if (num_pauli == 2) {
+        if (num_c == vec_ind[ic_nodagR]) ic_nodagR = (ic_nodagR == size - 1 ? 0 : ic_nodagR + 1);
+        if (num_c == vec_ind[ic_nodagL]) ic_nodagL = (ic_nodagL == 0 ? size - 1 : ic_nodagL - 1);
+        auto tR_nodag = det.get_y(vec[ic_nodagR]).first;
+        auto tL_nodag = det.get_y(vec[ic_nodagL]).first;
+
+        vec_ind.clear();
+        j = 0; op_pos = -1;
+        for (int i = 0; i < det_size; ++i) {
+          if (i == num_c_dag) op_pos = i;
+          if (det.get_x(i).second != rs_dag) continue;
+          vec_ind.push_back(i);
+          ++j;
+        }
+
+        int size = vec_ind.size();
+
+        auto ic_dagR = (op_pos == size - 1 ? 0 : op_pos + 1);
+        auto ic_dagL = (op_pos == 0 ? size - 1 : op_pos - 1);
+
+        auto tR_nodag = det.get_x(vec[ic_dagR]).first;
+        auto tL_nodag = det.get_x(vec[ic_dagL]).first;
+
+
+
+      }
+
+      j = 0, op_pos = -1;
+
+    }
+
     // record the length of the proposed removal
     dtau = double(tau2 - tau1);
     if (histo_proposed) *histo_proposed << dtau;

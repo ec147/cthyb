@@ -329,9 +329,9 @@ namespace triqs_cthyb {
       std::vector<int> *count_ins = meas_wr ? get_hist(counter["insert"],block_name) : nullptr;
       std::vector<int> *count_rem = meas_wr ? get_hist(counter["remove"],block_name) : nullptr;
       inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, nbins,
-                                     hist_ins, hist_rem, wr_ins, count_ins), "Insert Delta_" + block_name, prop_prob);
+                                     hist_ins, hist_rem, wr_ins, count_ins, params.pauli_prob), "Insert Delta_" + block_name, prop_prob);
       removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, nbins,
-                                     hist_ins, hist_rem, wr_rem, count_rem), "Remove Delta_" + block_name, prop_prob);
+                                     hist_ins, hist_rem, wr_rem, count_rem, params.pauli_prob), "Remove Delta_" + block_name, prop_prob);
       if (params.move_double) {
         for (size_t block2 = 0; block2 < _Delta_tau.size(); ++block2) {
           int block_size2         = _Delta_tau[block2].data().shape()[1];
