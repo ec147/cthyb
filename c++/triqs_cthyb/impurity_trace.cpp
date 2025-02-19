@@ -601,7 +601,7 @@ namespace triqs_cthyb {
     for (bl = 0; bl < n_bl; ++bl) { // sum over all blocks
 
       // stopping criterion
-      if ((bl > 0) && (bound_cumul[bl] <= std::abs(full_trace) * epsilon) && !(meas_den && time_invariance)) break;
+      if ((bl > 0) && (bound_cumul[bl] <= std::abs(full_trace) * epsilon)) break;
 
       int block_index = to_sort_lnorm_b[bl].second; // index in original (unsorted) order
 
