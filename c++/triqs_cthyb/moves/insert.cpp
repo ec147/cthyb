@@ -80,10 +80,13 @@ namespace triqs_cthyb {
 
     // Choice of times for insertion. Find the time as double and them put them on the grid.
     if (!use_improved_sampling) tau1 = data.tau_seg.get_random_pt(rng);
-    if (pauli_prob == 0.0 || rs1 != rs2) tau2 = data.tau_seg.get_random_pt(rng);
+    if (pauli_prob == 0.0) tau2 = data.tau_seg.get_random_pt(rng);
     double fac = 1.;
+    mc_weight_t t_ratio = 1.;
 
-    if (pauli_prob > 0.0 && rs1 == rs2) {
+    if (pauli_prob > 0.0) {
+
+      t_ratio = block_size * config.beta() / double(det_size + 1);
 
       int ic_dagL = -1, ic_dagR = -1, ic_nodagL = -1, ic_nodagR = -1;
 
@@ -91,16 +94,18 @@ namespace triqs_cthyb {
         while (det_size > Nmax) Nmax *= 2;
         vec_ind.reserve(Nmax);
       }
-      vec_ind.clear();
 
+      vec_ind.clear();
       int j = 0, op_pos = -1;
 
-      // Look at position of tau1 among creation operators of the same flavor
-      for (int i = 0; i < det_size; ++i) {
-        if (det.get_x(i).first < tau1 && op_pos == -1) op_pos = j;
-        if (det.get_x(i).second != rs1) continue;
-        vec_ind.push_back(i);
-        ++j;
+      if (rs1 == rs2) {
+        // Look at position of tau1 among creation operators of the same flavor
+        for (int i = 0; i < det_size; ++i) {
+          if (det.get_x(i).first < tau1 && op_pos == -1) op_pos = j;
+          if (det.get_x(i).second != rs1) continue;
+          vec_ind.push_back(i);
+          ++j;
+        }
       }
 
       int size = vec_ind.size();
@@ -125,44 +130,71 @@ namespace triqs_cthyb {
       }
 
       size = vec_ind.size();
+
       if (op_pos == -1) op_pos = size;
+
+      time_pt tRnodag, tLnodag;
 
       // Annihilation operators at the left and right of tau1
       if (size != 0) {
         ic_nodagR = (op_pos == size ? vec_ind[0] : vec_ind[op_pos]);
         ic_nodagL = (op_pos == 0 ? vec_ind[size-1] : vec_ind[op_pos-1]);
+        tRnodag = det.get_y(ic_nodagR).first;
+        tLnodag = det.get_y(ic_nodagL).first;
       }
 
       if (ic_nodagR != -1 && ic_dagR != -1) {
 
-        auto tRdag   = det.get_x(ic_dagR).first;
-        auto tRnodag = det.get_y(ic_nodagR).first;
-
-        auto tLdag   = det.get_x(ic_dagL).first;
-        auto tLnodag = det.get_y(ic_nodagL).first;
+        auto tRdag = det.get_x(ic_dagR).first;
+        auto tLdag = det.get_x(ic_dagL).first;
 
         auto tR = ((tau1 - tRdag) > (tau1 - tRnodag) ? tRnodag : tRdag);
         auto tL = ((tLdag - tau1) > (tLnodag - tau1) ? tLnodag : tLdag);
 
         if (pauli_move) {
-          if (tR == tRdag)
+          if (tR == tRdag) {
             tau2 = tR + data.tau_seg.get_random_pt(rng, tau1 - tR);
-          else
+            t_ratio *= double(tau1 - tR) / pauli_prob;
+          }
+          else {
             tau2 = tau1 + data.tau_seg.get_random_pt(rng, tL - tau1);
+            t_ratio *= double(tL - tau1) / pauli_prob;
+          }
         }
         else {
           if (tR == tRdag) {
             tau2 = data.tau_seg.get_random_pt(rng, tR + beta - tau1);
             if (tau2 >= tR) tau2 = tau2 - tR + tau1;
+            t_ratio *= double(tR + beta - tau1) * block_size / (1. - pauli_prob);
           }
           else {
             tau2 = data.tau_seg.get_random_pt(rng, tau1 + beta - tL);
             if (tau2 >= tau1) tau2 = tau2 - tau1 + tL;
+            t_ratio *= double(tau1 + beta - tL) * block_size / (1. - pauli_prob);
           }
         }
       }
-      else // if no operators of the same flavor
+      else { // if no operators of the same flavor or different flavors for insertion
         tau2 = data.tau_seg.get_random_pt(rng);
+        if (rs1 == rs2)
+          t_ratio /= (pauli_prob + (1. - pauli_prob) / double(block_size)) / config.beta();
+        else
+          t_ratio *= block_size * config.beta() / (1. - pauli_prob);
+      }
+
+      int num_pauli = size;
+      if (rs1 == rs2) ++num_pauli;
+      num_pauli = std::min(num_pauli, 2);
+      if (num_pauli == 0 || num_pauli == det_size + 1)
+        t_ratio /= double(det_size + 1);
+      else {
+        if ((tau1 - tau2) < (tau1 - tRnodag)) tRnodag = tau2;
+        if ((tau2 - tau1) < (tLnodag - tau1)) tLnodag = tau2;
+        if (tau2 == tRnodag || tau2 == tLnodag)
+          t_ratio *= pauli_prob / double(num_pauli);
+        else
+          t_ratio *= (1. - pauli_prob) / double(det_size + 1 - num_pauli);
+      }
     }
 
     if (use_improved_sampling) {
@@ -173,7 +205,7 @@ namespace triqs_cthyb {
       int ibin = 0;
       for (int i = 0; i < nbins; ++i) {
         csum += (*hist_insert)[i] * step_d;
-        if (csum >= ran || i == (nbins-1) ) {
+        if (csum >= ran || i == (nbins-1)) {
           ibin = i;
           break;
         }
@@ -243,7 +275,7 @@ namespace triqs_cthyb {
     auto det_ratio = det.try_insert(num_c_dag, num_c, {tau1, op1.inner_index}, {tau2, op2.inner_index});
 
     // proposition probability
-    mc_weight_t t_ratio = std::pow(block_size * config.beta() / double(det.size() + 1), 2);
+    if (pauli_prob == 0.0) t_ratio = std::pow(block_size * config.beta() / double(det.size() + 1), 2);
     if (use_improved_sampling) t_ratio *= fac;
 
     // For quick abandon
@@ -299,7 +331,6 @@ namespace triqs_cthyb {
   }
 
   mc_weight_t move_insert_c_cdag::accept() {
-
     time_pt tau_min = std::min(tau1,tau2);
     time_pt tau_max = std::max(tau1,tau2);
     if (tau_min < data.imp_trace.min_tau) data.imp_trace.min_tau = tau_min;
@@ -331,7 +362,6 @@ namespace triqs_cthyb {
   }
 
   void move_insert_c_cdag::reject() {
-
     config.finalize();
     data.imp_trace.cancel_insert();
     data.dets[block_index].reject_last_try();
