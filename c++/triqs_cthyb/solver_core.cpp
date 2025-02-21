@@ -355,50 +355,6 @@ namespace triqs_cthyb {
       qmc.add_move(std::move(double_removes), "Remove four operators", 1.0);
     }
 
-    if (params.move_shift) {
-      if (meas_wr) {
-        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
-          auto const &block_name = delta_names[block];
-          _weight_ratio["shift"][block_name] = std::vector<double>(nbins,0);
-          _weight_ratio["shift_dag"][block_name] = std::vector<double>(nbins,0);
-          counter["shift"][block_name] = std::vector<int>(nbins,0);
-          counter["shift_dag"][block_name] = std::vector<int>(nbins,0);
-        }
-      }
-      use_improved_sampling = true;
-      if (params.hist["shift"].empty() || params.hist["shift_dag"].empty()) use_improved_sampling = false;
-      if ((use_improved_sampling) && (params.hist["shift"].size() != _Delta_tau.size() ||
-         params.hist["shift_dag"].size() != _Delta_tau.size()))
-        TRIQS_RUNTIME_ERROR << "Inconsistency in hist['shift'] and hist['shift_dag']: the first dimension should be equal " <<
-        "to the number of blocks in gf_struct";
-      std::map<std::string, std::vector<double>> *hist_shift = use_improved_sampling ? &params.hist["shift"] : nullptr;
-      std::map<std::string, std::vector<double>> *hist_shift_dag = use_improved_sampling ? &params.hist["shift_dag"] : nullptr;
-      if (use_improved_sampling) {
-        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
-          auto const &block_name = delta_names[block];
-          if ((*hist_shift)[block_name].size() != nbins || (*hist_shift_dag)[block_name].size() != nbins)
-            TRIQS_RUNTIME_ERROR << "Inconsistency in hist['shift'] and hist['shift_dag']: for each block, you need to provide an array " <<
-            "of size nbins_histo";
-        }
-      }
-      weight_ratio_map_t *wr_shift = meas_wr ? &_weight_ratio["shift"] : nullptr;
-      weight_ratio_map_t *wr_shift_dag = meas_wr ? &_weight_ratio["shift_dag"] : nullptr;
-      counter_map_t *count_shift = meas_wr ? &counter["shift"] : nullptr;
-      counter_map_t *count_shift_dag = meas_wr ? &counter["shift_dag"] : nullptr;
-      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map, nbins, hist_shift, hist_shift_dag,
-                   wr_shift, wr_shift_dag, count_shift, count_shift_dag), "Shift one operator", 1.0);
-    }
-
-    if (params.move_global.size()) {
-      move_set_type global(qmc.get_rng());
-      for (auto const &mv : params.move_global) {
-        auto const &name          = mv.first;
-        auto const &substitutions = mv.second;
-        global.add(move_global(name, substitutions, data, qmc.get_rng()), name, 1.0);
-      }
-      qmc.add_move(std::move(global), "Global moves", params.move_global_prob);
-    }
-
     // --------------------------------------------------------------------------
     // Measurements
     // --------------------------------------------------------------------------
@@ -512,9 +468,60 @@ namespace triqs_cthyb {
     }
 
     // Run! The empty (starting) configuration has sign = 1
-    _solve_status =
-       qmc.warmup_and_accumulate(params.n_warmup_cycles, params.n_cycles, params.length_cycle,
-                                 triqs::utility::clock_callback(params.max_time), sign);
+    //_solve_status =
+    //   qmc.warmup_and_accumulate(params.n_warmup_cycles, params.n_cycles, params.length_cycle,
+    //                             triqs::utility::clock_callback(params.max_time), sign);
+
+    _solve_status = qmc.warmup(params.n_warmup_cycles, params.length_cycle,
+                              triqs::utility::clock_callback(params.max_time), sign);
+
+    if (params.move_shift) {
+      if (meas_wr) {
+        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
+          auto const &block_name = delta_names[block];
+          _weight_ratio["shift"][block_name] = std::vector<double>(nbins,0);
+          _weight_ratio["shift_dag"][block_name] = std::vector<double>(nbins,0);
+          counter["shift"][block_name] = std::vector<int>(nbins,0);
+          counter["shift_dag"][block_name] = std::vector<int>(nbins,0);
+        }
+      }
+      use_improved_sampling = true;
+      if (params.hist["shift"].empty() || params.hist["shift_dag"].empty()) use_improved_sampling = false;
+      if ((use_improved_sampling) && (params.hist["shift"].size() != _Delta_tau.size() ||
+         params.hist["shift_dag"].size() != _Delta_tau.size()))
+        TRIQS_RUNTIME_ERROR << "Inconsistency in hist['shift'] and hist['shift_dag']: the first dimension should be equal " <<
+        "to the number of blocks in gf_struct";
+      std::map<std::string, std::vector<double>> *hist_shift = use_improved_sampling ? &params.hist["shift"] : nullptr;
+      std::map<std::string, std::vector<double>> *hist_shift_dag = use_improved_sampling ? &params.hist["shift_dag"] : nullptr;
+      if (use_improved_sampling) {
+        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
+          auto const &block_name = delta_names[block];
+          if ((*hist_shift)[block_name].size() != nbins || (*hist_shift_dag)[block_name].size() != nbins)
+            TRIQS_RUNTIME_ERROR << "Inconsistency in hist['shift'] and hist['shift_dag']: for each block, you need to provide an array " <<
+            "of size nbins_histo";
+        }
+      }
+      weight_ratio_map_t *wr_shift = meas_wr ? &_weight_ratio["shift"] : nullptr;
+      weight_ratio_map_t *wr_shift_dag = meas_wr ? &_weight_ratio["shift_dag"] : nullptr;
+      counter_map_t *count_shift = meas_wr ? &counter["shift"] : nullptr;
+      counter_map_t *count_shift_dag = meas_wr ? &counter["shift_dag"] : nullptr;
+      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map, nbins, hist_shift, hist_shift_dag,
+                   wr_shift, wr_shift_dag, count_shift, count_shift_dag), "Shift one operator", 1.0);
+    }
+
+    if (params.move_global.size()) {
+      move_set_type global(qmc.get_rng());
+      for (auto const &mv : params.move_global) {
+        auto const &name          = mv.first;
+        auto const &substitutions = mv.second;
+        global.add(move_global(name, substitutions, data, qmc.get_rng()), name, 1.0);
+      }
+      qmc.add_move(std::move(global), "Global moves", params.move_global_prob);
+    }
+
+    if (_solve_status == 0) _solve_status = qmc.accumulate(params.n_cycles, params.length_cycle,
+                                triqs::utility::clock_callback(params.max_time));
+
     qmc.collect_results(_comm);
 
     if (meas_wr) {
