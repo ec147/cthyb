@@ -20,9 +20,6 @@
  ******************************************************************************/
 
 #include "./insert.hpp"
-#include <chrono>
-using std::chrono::duration_cast;
-using std::chrono::nanoseconds;
 
 namespace triqs_cthyb {
 
@@ -65,10 +62,6 @@ namespace triqs_cthyb {
     std::cerr << "In config " << config.get_id() << std::endl;
     std::cerr << "* Attempt for move_insert_c_cdag (block " << block_index << ")" << std::endl;
 #endif
-
-    //clock_t start, end;
-
-    auto start = std::chrono::high_resolution_clock::now();
 
     bool pauli_move = false;
     if (pauli_prob > 0.0) {
@@ -204,10 +197,6 @@ namespace triqs_cthyb {
       }
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-
-    std::cout << "Debug_pauli\t" << duration_cast<nanoseconds>(end-start).count() << std::endl;
-
     if (use_improved_sampling) {
       // first choose the bin, each bin being weighted by the probability hist_insert[bin]*length(bin)
       double ran  = rng();
@@ -294,16 +283,8 @@ namespace triqs_cthyb {
     if (random_number == 0.0) return 0;
     double p_yee = std::abs(t_ratio * det_ratio / data.atomic_weight);
 
-    //end = clock();
-
-    //std::cout << "Debug_pauli\t" << ((double)end - start) * 1.e3 / CLOCKS_PER_SEC << std::endl;
-
     // computation of the new trace after insertion
     std::tie(new_atomic_weight, new_atomic_reweighting) = data.imp_trace.compute(p_yee, random_number);
-
-    //end = clock();
-
-    //std::cout << "Debug_pauli\t" << ((double)end - start) * 1.e3 / CLOCKS_PER_SEC << std::endl;
 
     if (new_atomic_weight == 0.0) {
 #ifdef EXT_DEBUG
