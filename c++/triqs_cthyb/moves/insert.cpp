@@ -188,8 +188,8 @@ namespace triqs_cthyb {
       if (num_pauli == 0 || num_pauli == det_size + 1)
         t_ratio /= double(det_size + 1);
       else {
-        if ((tau1 - tau2) < (tau1 - tRnodag)) tRnodag = tau2;
-        if ((tau2 - tau1) < (tLnodag - tau1)) tLnodag = tau2;
+        if ((tau1 - tau2) < (tau1 - tRnodag) && (rs1 == rs2)) tRnodag = tau2;
+        if ((tau2 - tau1) < (tLnodag - tau1) && (rs1 == rs2)) tLnodag = tau2;
         if (tau2 == tRnodag || tau2 == tLnodag)
           t_ratio *= pauli_prob / double(num_pauli);
         else
