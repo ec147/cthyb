@@ -229,9 +229,6 @@ namespace triqs_cthyb {
     /// Overall probability of the global moves
     double move_global_prob = 0.05;
 
-    /// Overall probability of mirror move
-    double move_mirror_prob = 0.;
-
     /// Overall proposal probability for Pauli-aware insert and remove
     double pauli_prob = 0.0;
 

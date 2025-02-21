@@ -87,14 +87,6 @@ namespace triqs_cthyb {
     void insert(time_pt tau, op_desc op) { oplist.insert({tau, op}); }
     void replace(time_pt tau, op_desc op) { oplist[tau] = op; }
     void erase(time_pt const &t) { oplist.erase(t); }
-    void mirror() {
-      oplist_t new_list = {};
-      for (auto [tau, op] : oplist) {
-        op.dagger = !op.dagger;
-        new_list.insert({-tau, op});
-      }
-      oplist = std::move(new_list);
-    }
     void clear() { oplist.clear(); }
 
     oplist_t::iterator begin() { return oplist.begin(); }
