@@ -132,7 +132,7 @@ namespace triqs_cthyb {
         if (X[bl].size() != Y[bl].size())
           TRIQS_RUNTIME_ERROR << "In the initial config, the number of c and c_dag operators should be equal";
 #ifdef HYBRIDISATION_IS_COMPLEX
-        dets.emplace_back(delta_block_adaptor(delta[bl]), X[bl], Y[bl]);
+        dets.emplace_back(delta_block_adaptor(delta[bl]), p.det_init_size);
 #else
         if (!is_gf_real(delta[bl], 1e-10)) {
           //TRIQS_RUNTIME_ERROR << "The Delta(tau) block number " << bl << " is not real in tau space";
@@ -142,12 +142,16 @@ namespace triqs_cthyb {
             std::cerr << "WARNING: Dissregarding the imaginary component in the calculation.\n";
           }
         }
-        dets.emplace_back(delta_block_adaptor(real(delta[bl])), X[bl], Y[bl]);
+        dets.emplace_back(delta_block_adaptor(real(delta[bl])), p.det_init_size);
 #endif
         dets.back().set_singular_threshold(p.det_singular_threshold);
         dets.back().set_n_operations_before_check(p.det_n_operations_before_check);
         dets.back().set_precision_warning(p.det_precision_warning);
         dets.back().set_precision_error(p.det_precision_error);
+        for (int i : range(X[bl].size())) {
+          dets.back().try_insert(0, 0, X[bl][i], Y[bl][i]);
+          dets.back().complete_operation();
+        }
       }
       update_sign();
     }
