@@ -48,7 +48,8 @@ namespace triqs_cthyb {
        t1(time_pt(1, config.beta())),
        use_improved_sampling(hist_insert && hist_remove),
        wr_remove(wr_remove),
-       pauli_prob(pauli_prob)	{
+       pauli_prob(pauli_prob),
+       beta(time_pt(time_pt::Nmax, config.beta())) {
          bins.reserve(Nmax);
          if (pauli_prob > 0.0) vec_ind.reserve(Nmax);
        }
@@ -67,7 +68,7 @@ namespace triqs_cthyb {
     // Remove the operators from the traces
     int det_size = det.size();
     if (det_size == 0) return 0; // nothing to remove
-    int num_c_dag, num_c;
+    int num_c_dag = -1, num_c = -1;
     if (!use_improved_sampling) num_c_dag = rng(det_size);
     if (pauli_prob == 0.0) num_c = rng(det_size);
 
@@ -128,7 +129,8 @@ namespace triqs_cthyb {
     mc_weight_t t_ratio = 1.;
 
     if (pauli_prob > 0.0) {
-      t_ratio = double(det_size) / (block_size * config.beta());
+
+      t_ratio = block_size * config.beta() / double(det_size);
 
       int rs_dag = det.get_x(num_c_dag).second;
 
@@ -173,8 +175,8 @@ namespace triqs_cthyb {
             int ran_pauli = rng(2);
             num_c = (ran_pauli == 0 ? ic_nodagR : ic_nodagL);
           }
-          t_ratio *= double(num_pauli);
-          if (num_pauli != det_size) t_ratio /= pauli_prob;
+          t_ratio /= double(num_pauli);
+          if (num_pauli != det_size) t_ratio *= pauli_prob;
         }
         else {  // Choose num_c between all the other indices
           int ran_pauli = rng(det_size - num_pauli);
@@ -186,12 +188,12 @@ namespace triqs_cthyb {
           if (i1 <= ran_pauli && ran_pauli < i2 - 1) num_c = ran_pauli + 1;
           if (i2 <= ran_pauli + 1) num_c = ran_pauli + num_pauli;
 
-          t_ratio *= double(det_size - num_pauli) / (1. - pauli_prob);
+          t_ratio *= (1. - pauli_prob) / double(det_size - num_pauli);
         }
       }
       else {
         num_c = rng(det_size);
-        t_ratio *= double(det_size);
+        t_ratio /= double(det_size);
       }
 
       tau1 = data.imp_trace.try_delete(num_c, block_index, false);
@@ -199,10 +201,10 @@ namespace triqs_cthyb {
       int rs = det.get_y(num_c).second;
 
       if (rs != rs_dag)
-        t_ratio *= (1. - pauli_prob) / (block_size * config.beta());
+        t_ratio *= block_size * config.beta() / (1. - pauli_prob);
       else {
         if (size == 1)
-          t_ratio *= (pauli_prob + (1. - pauli_prob) / double(block_size)) / config.beta();
+          t_ratio /= (pauli_prob + (1. - pauli_prob) / double(block_size)) / config.beta();
         else {
           // Find closest annihilation operators to tau2 of the same flavor (excluding num_c)
           for (j = 0 ; j < size; ++j) {
@@ -232,7 +234,7 @@ namespace triqs_cthyb {
           size = vec_ind.size();
 
           if (size == 1)
-            t_ratio *= (pauli_prob + (1. - pauli_prob) / double(block_size)) / config.beta();
+            t_ratio /= (pauli_prob + (1. - pauli_prob) / double(block_size)) / config.beta();
           else {
             if (op_pos == -1) op_pos = size;
             int ic_dagR = (op_pos == size ? vec_ind[0] : vec_ind[op_pos]);
@@ -248,15 +250,15 @@ namespace triqs_cthyb {
 
             if (tR == tR_dag) {
               if ((tau2 - tau1) < (tau2 - tR))
-                t_ratio *= pauli_prob / (double(tau2 - tR));
+                t_ratio *= double(tau2 - tR) / pauli_prob;
               else
-                t_ratio *= (1. - pauli_prob) / (block_size * double(config.beta() + tR - tau2));
+                t_ratio *= block_size * double(beta + tR - tau2) / (1. - pauli_prob);
             }
             else {
               if ((tau1 - tau2) < (tL - tau2))
-                t_ratio *= pauli_prob / (double(tL - tau2));
+                t_ratio *= double(tL - tau2) / pauli_prob;
               else
-                t_ratio *= (1. - pauli_prob) / (block_size * double(config.beta() + tau2 - tL));
+                t_ratio *= block_size * double(beta + tau2 - tL) / (1. - pauli_prob);
             }
           }
         }
@@ -270,13 +272,13 @@ namespace triqs_cthyb {
     auto det_ratio = det.try_remove(num_c_dag, num_c);
 
     // proposition probability
-    if (pauli_prob == 0.0) t_ratio = std::pow(double(det_size) / (block_size * config.beta()), 2); // Size of the det before the try_delete!
+    if (pauli_prob == 0.0) t_ratio = std::pow(block_size * config.beta() / double(det_size), 2); // Size of the det before the try_delete!
     if (use_improved_sampling) t_ratio *= fac;
 
     // For quick abandon
     double random_number = rng.preview();
     if (random_number == 0.0) return 0;
-    double p_yee = std::abs(det_ratio * t_ratio / data.atomic_weight);
+    double p_yee = std::abs(det_ratio / t_ratio / data.atomic_weight);
 
     // recompute the atomic_weight
     std::tie(new_atomic_weight, new_atomic_reweighting) = data.imp_trace.compute(p_yee, random_number);
@@ -308,7 +310,7 @@ namespace triqs_cthyb {
     std::cerr << "Trace ratio: " << atomic_weight_ratio << '\t';
     std::cerr << "Det ratio: " << det_ratio << '\t';
     std::cerr << "Prefactor: " << t_ratio << '\t';
-    std::cerr << "Weight: " << p * t_ratio << std::endl;
+    std::cerr << "Weight: " << p / t_ratio << std::endl;
 #endif
 
     if (!isfinite(p)) {
@@ -316,14 +318,14 @@ namespace triqs_cthyb {
       std::cerr << "Trace ratio: " << atomic_weight_ratio << '\t';
       std::cerr << "Det ratio: " << det_ratio << '\t';
       std::cerr << "Prefactor: " << t_ratio << '\t';
-      std::cerr << "Weight: " << p * t_ratio << std::endl;
+      std::cerr << "Weight: " << p / t_ratio << std::endl;
       TRIQS_RUNTIME_ERROR << "(remove) p not finite :" << p << " in config " << config.get_id();
     }
 
-    if (!isfinite(p * t_ratio)){
-      TRIQS_RUNTIME_ERROR << "(remove) p * t_ratio not finite p : " << p << " t_ratio :  " << t_ratio << " in config " << config.get_id();
+    if (!isfinite(p / t_ratio)){
+      TRIQS_RUNTIME_ERROR << "(remove) p / t_ratio not finite p : " << p << " t_ratio :  " << t_ratio << " in config " << config.get_id();
     }
-    return p * t_ratio;
+    return p / t_ratio;
   }
 
   mc_weight_t move_remove_c_cdag::accept() {

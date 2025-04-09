@@ -47,6 +47,7 @@ namespace triqs_cthyb {
     std::vector<double> *wr_remove;
     double pauli_prob;
     std::vector<int> vec_ind;
+    time_pt beta;
 
     histogram *add_histo(std::string const &name, histo_map_t *histos, int nbins);
 

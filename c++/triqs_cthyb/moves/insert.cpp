@@ -163,13 +163,11 @@ namespace triqs_cthyb {
         }
         else {
           if (tR == tRdag) {
-            tau2 = data.tau_seg.get_random_pt(rng, tR + beta - tau1);
-            if (tau2 >= tR) tau2 = tau2 - tR + tau1;
+            tau2 = tau1 + data.tau_seg.get_random_pt(rng, tR + beta - tau1);
             t_ratio *= double(tR + beta - tau1) * block_size / (1. - pauli_prob);
           }
           else {
-            tau2 = data.tau_seg.get_random_pt(rng, tau1 + beta - tL);
-            if (tau2 >= tau1) tau2 = tau2 - tau1 + tL;
+            tau2 = tL + data.tau_seg.get_random_pt(rng, tau1 + beta - tL);
             t_ratio *= double(tau1 + beta - tL) * block_size / (1. - pauli_prob);
           }
         }
