@@ -149,7 +149,7 @@ namespace triqs_cthyb {
         dets.back().set_precision_warning(p.det_precision_warning);
         dets.back().set_precision_error(p.det_precision_error);
         for (int i : range(X[bl].size())) {
-          dets.back().try_insert(0, 0, X[bl][i], Y[bl][i]);
+          dets.back().try_insert(i, i, X[bl][i], Y[bl][i]);
           dets.back().complete_operation();
         }
       }
