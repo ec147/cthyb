@@ -420,10 +420,10 @@ namespace triqs_cthyb {
         auto key   = n->key;
         auto color = n->color;
         auto N     = n->N;
-        auto matrix_left = n->cache.matrix_left;
-        auto matrix_left_valid = n->cache.matrix_left_valid;
-        auto matrix_right = n->cache.matrix_right;
-        auto matrix_right_valid = n->cache.matrix_right_valid;
+        auto &matrix_left = n->cache.matrix_left;
+        auto &matrix_left_valid = n->cache.matrix_left_valid;
+        auto &matrix_right = n->cache.matrix_right;
+        auto &matrix_right_valid = n->cache.matrix_right_valid;
 
         new_node = backup_nodes.swap_next(n);
         if (op_changed)

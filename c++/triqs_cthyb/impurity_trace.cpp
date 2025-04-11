@@ -493,11 +493,6 @@ namespace triqs_cthyb {
     double lnorm_threshold = double_max - 100;
     std::vector<std::pair<double, int>> init_to_sort_lnorm_b, to_sort_lnorm_b; // pairs of lnorm and b to sort in order of bound
 
-    if (meas_den) {
-      min_tau = time_pt(time_pt::Nmax,beta);
-      max_tau = time_pt(0,beta);
-    }
-
     // simplifies later code
     if (tree_size == 0) {
       if (meas_den) density_matrix = atomic_rho;
@@ -575,6 +570,12 @@ namespace triqs_cthyb {
           density_matrix[bl].mat = h_scalar_t{0};
 	  density_matrix[bl].is_valid = false;
         }
+        if (tree.get_root()) {
+          update_matrix_left(tree.get_root());
+          update_matrix_right(tree.get_root());
+        }
+        min_tau = time_pt(time_pt::Nmax,beta);
+        max_tau = time_pt(0,beta);
       }
       else {
         for (int bl = 0; bl < n_blocks; ++bl) density_matrix[bl].is_valid = false;
