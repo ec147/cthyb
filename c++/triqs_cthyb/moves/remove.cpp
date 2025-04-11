@@ -186,7 +186,7 @@ namespace triqs_cthyb {
 
           if (ran_pauli < i1) num_c = ran_pauli;
           if (i1 <= ran_pauli && ran_pauli < i2 - 1) num_c = ran_pauli + 1;
-          if (i2 <= ran_pauli + 1) num_c = ran_pauli + num_pauli;
+          if (i2 < ran_pauli + num_pauli) num_c = ran_pauli + num_pauli;
 
           t_ratio *= (1. - pauli_prob) / double(det_size - num_pauli);
         }
