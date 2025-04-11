@@ -444,12 +444,6 @@ namespace triqs_cthyb {
 
   void impurity_trace::update_cache() {
     update_cache_impl(tree.get_root());
-    if (measure_density_matrix) {
-      if (tree.get_root() && time_invariance) {
-        update_matrix_left(tree.get_root());
-        update_matrix_right(tree.get_root());
-      }
-    }
   }
 
   // --------------------------------
