@@ -206,19 +206,10 @@ namespace triqs_cthyb {
     /// Analyse performance of trace computation with histograms (developers only)?
     bool performance_analysis = false;
 
-    /// Measure the weight ratio for each time bin
-    bool measure_weight_ratio = false;
-
     /// Operator insertion/removal probabilities for different blocks
     /// type: dict(str:float)
     /// default: {}
     std::map<std::string, double> proposal_prob = {};
-
-    /// Number of bins for the histograms
-    int nbins_histo = 100;
-
-    /// Proposal distribution for each move
-    std::map<std::string, weight_ratio_map_t> hist = {};
 
     /// List of global moves (with their names).
     /// Each move is specified with an index substitution dictionary.
@@ -230,7 +221,7 @@ namespace triqs_cthyb {
     double move_global_prob = 0.05;
 
     /// Overall proposal probability for Pauli-aware insert and remove
-    double pauli_prob = 0.0;
+    double pauli_prob = 0.;
 
     /// Threshold below which imaginary components of Delta and h_loc are set to zero
     double imag_threshold = 1.e-13;

@@ -285,52 +285,13 @@ namespace triqs_cthyb {
       auto f = params.proposal_prob.find(block_name);
       return (f != params.proposal_prob.end() ? f->second : 1.0);
     };
-    auto get_hist = []<typename T>(std::map<std::string, T> &map, std::string const &block_name) {
-      auto f = map.find(block_name);
-      return (f != map.end() ? &f->second : nullptr);
-    };
-
-    bool use_improved_sampling = true;
-    if (params.hist["insert"].empty() || params.hist["remove"].empty()) use_improved_sampling = false;
-    if ((use_improved_sampling) && (params.hist["insert"].size() != params.hist["remove"].size() || params.hist["insert"].size() != _Delta_tau.size()))
-        TRIQS_RUNTIME_ERROR << "Inconsistency in hist['insert'] and hist['remove']: the first dimension should be equal " <<
-        "to the number of blocks in gf_struct";
-    int nbins = params.nbins_histo;
-
-    bool meas_wr = params.measure_weight_ratio;
-    std::map<std::string, counter_map_t> counter;
 
     for (size_t block = 0; block < _Delta_tau.size(); ++block) {
       int block_size         = _Delta_tau[block].data().shape()[1];
       auto const &block_name = delta_names[block];
       double prop_prob       = get_prob_prop(block_name);
-      std::vector<double> *hist_ins = use_improved_sampling ? get_hist(params.hist["insert"],block_name) : nullptr;
-      std::vector<double> *hist_rem = use_improved_sampling ? get_hist(params.hist["remove"],block_name) : nullptr;
-      if (use_improved_sampling) {
-        if (hist_ins->size() != hist_rem->size() || hist_ins->size() != nbins)
-          TRIQS_RUNTIME_ERROR << "Inconsistency in hist['insert'] and hist['remove']: for each block, you need to provide an array " <<
-          "of size nbins_histo";
-        // Normalize hist_ins
-        double s = 0;
-        double step = beta / nbins;
-        for (int i = 0; i < nbins; ++i) s += step * (*hist_ins)[i];
-        if (std::abs(s) < 1.e-15) TRIQS_RUNTIME_ERROR << "Inconsistency in hist_insert: please provide a non-zero distribution";
-        for (auto &elem : (*hist_ins)) elem /= s;
-      }
-      if (meas_wr) {
-        _weight_ratio["insert"][block_name] = std::vector<double>(nbins,0);
-        _weight_ratio["remove"][block_name] = std::vector<double>(nbins,0);
-	counter["insert"][block_name] = std::vector<int>(nbins,0);
-	counter["remove"][block_name] = std::vector<int>(nbins,0);
-      }
-      std::vector<double> *wr_ins = meas_wr ? get_hist(_weight_ratio["insert"],block_name) : nullptr;
-      std::vector<double> *wr_rem = meas_wr ? get_hist(_weight_ratio["remove"],block_name) : nullptr;
-      std::vector<int> *count_ins = meas_wr ? get_hist(counter["insert"],block_name) : nullptr;
-      std::vector<int> *count_rem = meas_wr ? get_hist(counter["remove"],block_name) : nullptr;
-      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, nbins,
-                                     hist_ins, hist_rem, wr_ins, count_ins, params.pauli_prob), "Insert Delta_" + block_name, prop_prob);
-      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, nbins,
-                                     hist_ins, hist_rem, wr_rem, count_rem, params.pauli_prob), "Remove Delta_" + block_name, prop_prob);
+      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.pauli_prob), "Insert Delta_" + block_name, prop_prob);
+      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.pauli_prob), "Remove Delta_" + block_name, prop_prob);
       if (params.move_double) {
         for (size_t block2 = 0; block2 < _Delta_tau.size(); ++block2) {
           int block_size2         = _Delta_tau[block2].data().shape()[1];
@@ -475,39 +436,8 @@ namespace triqs_cthyb {
     _solve_status = qmc.warmup(params.n_warmup_cycles, params.length_cycle,
                               triqs::utility::clock_callback(params.max_time), sign);
 
-    if (params.move_shift) {
-      if (meas_wr) {
-        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
-          auto const &block_name = delta_names[block];
-          _weight_ratio["shift"][block_name] = std::vector<double>(nbins,0);
-          _weight_ratio["shift_dag"][block_name] = std::vector<double>(nbins,0);
-          counter["shift"][block_name] = std::vector<int>(nbins,0);
-          counter["shift_dag"][block_name] = std::vector<int>(nbins,0);
-        }
-      }
-      use_improved_sampling = true;
-      if (params.hist["shift"].empty() || params.hist["shift_dag"].empty()) use_improved_sampling = false;
-      if ((use_improved_sampling) && (params.hist["shift"].size() != _Delta_tau.size() ||
-         params.hist["shift_dag"].size() != _Delta_tau.size()))
-        TRIQS_RUNTIME_ERROR << "Inconsistency in hist['shift'] and hist['shift_dag']: the first dimension should be equal " <<
-        "to the number of blocks in gf_struct";
-      std::map<std::string, std::vector<double>> *hist_shift = use_improved_sampling ? &params.hist["shift"] : nullptr;
-      std::map<std::string, std::vector<double>> *hist_shift_dag = use_improved_sampling ? &params.hist["shift_dag"] : nullptr;
-      if (use_improved_sampling) {
-        for (size_t block = 0; block < _Delta_tau.size(); ++block) {
-          auto const &block_name = delta_names[block];
-          if ((*hist_shift)[block_name].size() != nbins || (*hist_shift_dag)[block_name].size() != nbins)
-            TRIQS_RUNTIME_ERROR << "Inconsistency in hist['shift'] and hist['shift_dag']: for each block, you need to provide an array " <<
-            "of size nbins_histo";
-        }
-      }
-      weight_ratio_map_t *wr_shift = meas_wr ? &_weight_ratio["shift"] : nullptr;
-      weight_ratio_map_t *wr_shift_dag = meas_wr ? &_weight_ratio["shift_dag"] : nullptr;
-      counter_map_t *count_shift = meas_wr ? &counter["shift"] : nullptr;
-      counter_map_t *count_shift_dag = meas_wr ? &counter["shift_dag"] : nullptr;
-      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map, nbins, hist_shift, hist_shift_dag,
-                   wr_shift, wr_shift_dag, count_shift, count_shift_dag), "Shift one operator", 1.0);
-    }
+    if (params.move_shift)
+      qmc.add_move(move_shift_operator(data, qmc.get_rng(), histo_map) , "Shift one operator", 1.0);
 
     if (params.move_global.size()) {
       move_set_type global(qmc.get_rng());
@@ -523,24 +453,6 @@ namespace triqs_cthyb {
                                 triqs::utility::clock_callback(params.max_time));
 
     qmc.collect_results(_comm);
-
-    if (meas_wr) {
-       std::vector<std::string> labels = { "insert", "remove"} ;
-       if (params.move_shift) {
-         labels.push_back("shift");
-         labels.push_back("shift_dag");
-       }
-       for (auto const &move : labels) {
-         for (auto const &block_name : _Delta_tau.block_names()) {
-           mpi::all_reduce(counter[move][block_name], _comm);
-	   mpi::all_reduce(_weight_ratio[move][block_name], _comm);
-	   for (int j = 0; j < nbins; ++j) {
-             int c = counter[move][block_name][j];
-             if (c > 0) _weight_ratio[move][block_name][j] /= c;
-           }
-	 }
-       }
-    }
 
     if (params.verbosity >= 2) {
       std::cout << "Average sign: " << _average_sign << std::endl;

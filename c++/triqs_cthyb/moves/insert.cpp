@@ -23,35 +23,23 @@
 
 namespace triqs_cthyb {
 
-  histogram *move_insert_c_cdag::add_histo(std::string const &name, histo_map_t *histos, int nbins) {
+  histogram *move_insert_c_cdag::add_histo(std::string const &name, histo_map_t *histos) {
     if (!histos) return nullptr;
-    auto new_histo = histos->insert({name, {.0, config.beta(), nbins}});
+    auto new_histo = histos->insert({name, {.0, config.beta(), 100}});
     return &(new_histo.first->second);
   }
 
   move_insert_c_cdag::move_insert_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data,
-                                         mc_tools::random_generator &rng, histo_map_t *histos, int nbins,
-                                         std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-					 std::vector<double> *wr_insert, std::vector<int> *count_insert, double pauli_prob)
+                                         mc_tools::random_generator &rng, histo_map_t *histos, double pauli_prob)
      : data(data),
        config(data.config),
        rng(rng),
        block_index(block_index),
        block_size(block_size),
-       count_insert(count_insert),
-       histo_proposed(add_histo("insert_length_proposed_" + block_name, histos, nbins)),
-       histo_accepted(add_histo("insert_length_accepted_" + block_name, histos, nbins)),
-       hist_insert(hist_insert),
-       hist_remove(hist_remove),
-       meas_wr(wr_insert),
-       step_d(config.beta() / double(nbins)),
-       step_i(time_pt::Nmax / nbins),
-       t1(time_pt(1, config.beta())),
-       use_improved_sampling(hist_insert && hist_remove),
-       wr_insert(wr_insert),
+       histo_proposed(add_histo("insert_length_proposed_" + block_name, histos)),
+       histo_accepted(add_histo("insert_length_accepted_" + block_name, histos)),
        pauli_prob(pauli_prob),
-       Nmax(100),
-       beta(time_pt(time_pt::Nmax, config.beta())) {
+       Nmax(100) {
          if (pauli_prob > 0.0) vec_ind.reserve(Nmax);
        }
 
@@ -79,9 +67,8 @@ namespace triqs_cthyb {
     int det_size = det.size();
 
     // Choice of times for insertion. Find the time as double and them put them on the grid.
-    if (!use_improved_sampling) tau1 = data.tau_seg.get_random_pt(rng);
-    if (pauli_prob == 0.0) tau2 = data.tau_seg.get_random_pt(rng);
-    double fac = 1.;
+    tau1 = data.tau_seg.get_random_pt(rng);
+    if (!pauli_move) tau2 = data.tau_seg.get_random_pt(rng);
     mc_weight_t t_ratio = 1.;
 
     if (pauli_prob > 0.0) {
@@ -151,29 +138,23 @@ namespace triqs_cthyb {
         auto tR = ((tau1 - tRdag) > (tau1 - tRnodag) ? tRnodag : tRdag);
         auto tL = ((tLdag - tau1) > (tLnodag - tau1) ? tLnodag : tLdag);
 
-        if (pauli_move) {
-          if (tR == tRdag) {
-            tau2 = tR + data.tau_seg.get_random_pt(rng, tau1 - tR);
-            t_ratio *= double(tau1 - tR) / pauli_prob;
-          }
-          else {
-            tau2 = tau1 + data.tau_seg.get_random_pt(rng, tL - tau1);
-            t_ratio *= double(tL - tau1) / pauli_prob;
-          }
+        if (tR == tRdag) {
+          if (pauli_move) tau2 = tR + data.tau_seg.get_random_pt(rng, tau1 - tR);
+          if ((tau1 - tau2) < (tau1 - tR))
+            t_ratio /= pauli_prob / double(tau1 - tR) + (1. - pauli_prob) / (block_size * config.beta());
+          else
+            t_ratio *= block_size * config.beta() / (1. - pauli_prob);
         }
         else {
-          if (tR == tRdag) {
-            tau2 = tau1 + data.tau_seg.get_random_pt(rng, tR + beta - tau1);
-            t_ratio *= double(tR + beta - tau1) * block_size / (1. - pauli_prob);
-          }
-          else {
-            tau2 = tL + data.tau_seg.get_random_pt(rng, tau1 + beta - tL);
-            t_ratio *= double(tau1 + beta - tL) * block_size / (1. - pauli_prob);
-          }
+          if (pauli_move) tau2 = tau1 + data.tau_seg.get_random_pt(rng, tL - tau1);
+          if ((tau2 - tau1) < (tL - tau1))
+            t_ratio /= pauli_prob / double(tL - tau1) + (1. - pauli_prob) / (block_size * config.beta());
+          else
+            t_ratio *= block_size * config.beta() / (1. - pauli_prob);
         }
       }
       else { // if no operators of the same flavor or different flavors for insertion
-        tau2 = data.tau_seg.get_random_pt(rng);
+        if (pauli_move) tau2 = data.tau_seg.get_random_pt(rng);
         if (rs1 == rs2)
           t_ratio /= (pauli_prob + (1. - pauli_prob) / double(block_size)) / config.beta();
         else
@@ -186,52 +167,19 @@ namespace triqs_cthyb {
       if (num_pauli == 0 || num_pauli == det_size + 1)
         t_ratio /= double(det_size + 1);
       else {
-        if ((tau1 - tau2) < (tau1 - tRnodag) && (rs1 == rs2)) tRnodag = tau2;
-        if ((tau2 - tau1) < (tLnodag - tau1) && (rs1 == rs2)) tLnodag = tau2;
-        if (tau2 == tRnodag || tau2 == tLnodag)
-          t_ratio *= pauli_prob / double(num_pauli);
-        else
-          t_ratio *= (1. - pauli_prob) / double(det_size + 1 - num_pauli);
-      }
-    }
-
-    if (use_improved_sampling) {
-      // first choose the bin, each bin being weighted by the probability hist_insert[bin]*length(bin)
-      double ran  = rng();
-      double csum = 0.;
-      int nbins = (*hist_insert).size();
-      int ibin = 0;
-      for (int i = 0; i < nbins; ++i) {
-        csum += (*hist_insert)[i] * step_d;
-        if (csum >= ran || i == (nbins-1)) {
-          ibin = i;
-          break;
+        if (size == 0) {   // In this case rs1 = rs2
+          tRnodag = tau2;
+          tLnodag = tau2;
         }
+        else {
+          if ((tau1 - tau2) < (tau1 - tRnodag) && (rs1 == rs2)) tRnodag = tau2;
+          if ((tau2 - tau1) < (tLnodag - tau1) && (rs1 == rs2)) tLnodag = tau2;
+        }
+        if (tau2 == tRnodag || tau2 == tLnodag)
+          t_ratio *= pauli_prob / double(num_pauli) + (1. - pauli_prob) / double(det_size + 1);
+        else
+          t_ratio *= (1. - pauli_prob) / double(det_size + 1);
       }
-
-      time_pt bin_start  = time_pt(step_i * ibin, config.beta());
-      time_pt bin_finish = time_pt(step_i * (ibin+1), config.beta());
-      if (ibin == nbins - 1) bin_finish = time_pt(time_pt::Nmax, config.beta());
-
-      // now draw a time point uniformly within this bin
-      tau1 = tau2 + data.tau_seg.get_random_pt(rng, bin_start, bin_finish);
-
-      // compute the probability of proposing the current config from the trial one
-      // this is simply hist_remove[bin(tau1-tau2)] / sum_i(hist_remove(bin(tau_i - tau2)))
-      // where the sum is performed over all creation operators of the current block, including the trial one
-      int ind;
-      double s = (*hist_remove)[ibin]; // normalization constant = sum_i(hist_remove(bin(tau_i - tau2)))
-      time_pt dtau_r;
-
-      for (int i = 0; i < det_size; ++i) {
-        dtau_r = det.get_x(i).first - tau2;
-        ind = floor_div(dtau_r, t1) / step_i;
-        s += (*hist_remove)[ind];
-      }
-
-      // corrective factor for t_ratio
-      if ((*hist_remove)[ibin] == 0.0) return 0; // quick return
-      fac = double(data.dets[block_index].size() + 1) * (*hist_remove)[ibin] / (s * config.beta() * (*hist_insert)[ibin]);
     }
 
 #ifdef EXT_DEBUG
@@ -274,7 +222,6 @@ namespace triqs_cthyb {
 
     // proposition probability
     if (pauli_prob == 0.0) t_ratio = std::pow(block_size * config.beta() / double(det.size() + 1), 2);
-    if (use_improved_sampling) t_ratio *= fac;
 
     // For quick abandon
     double random_number = rng.preview();
@@ -283,16 +230,10 @@ namespace triqs_cthyb {
 
     // computation of the new trace after insertion
     std::tie(new_atomic_weight, new_atomic_reweighting) = data.imp_trace.compute(p_yee, random_number);
-
     if (new_atomic_weight == 0.0) {
 #ifdef EXT_DEBUG
       std::cerr << "atomic_weight == 0" << std::endl;
 #endif
-      if (meas_wr) {
-        int ibin = floor_div(tau1 - tau2, t1) / step_i;
-        (*wr_insert)[ibin] += std::abs(det_ratio * new_atomic_reweighting);
-        (*count_insert)[ibin] ++;
-      }
       return 0;
     }
     auto atomic_weight_ratio = new_atomic_weight / data.atomic_weight;
@@ -301,12 +242,6 @@ namespace triqs_cthyb {
                           << new_atomic_weight / data.atomic_weight << " in config " << config.get_id();
 
     mc_weight_t p = atomic_weight_ratio * det_ratio;
-
-    if (meas_wr) {
-      int ibin = floor_div(tau1 - tau2, t1) / step_i;
-      (*wr_insert)[ibin] += std::abs(p);
-      (*count_insert)[ibin] ++;
-    }
 
 #ifdef EXT_DEBUG
     std::cerr << "Atomic ratio: " << atomic_weight_ratio << '\t';

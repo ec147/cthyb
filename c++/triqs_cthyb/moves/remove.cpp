@@ -23,34 +23,23 @@
 
 namespace triqs_cthyb {
 
-  histogram * move_remove_c_cdag::add_histo(std::string const &name, histo_map_t *histos, int nbins) {
+  histogram * move_remove_c_cdag::add_histo(std::string const &name, histo_map_t *histos) {
     if (!histos) return nullptr;
-    auto new_histo = histos->insert({name, {.0, config.beta(), nbins}});
+    auto new_histo = histos->insert({name, {.0, config.beta(), 100}});
     return &(new_histo.first->second);
   }
 
   move_remove_c_cdag::move_remove_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data, mc_tools::random_generator &rng,
-                                         histo_map_t *histos, int nbins, std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-					 std::vector<double> *wr_remove, std::vector<int> *count_remove, double pauli_prob)
+                                         histo_map_t *histos, double pauli_prob)
      : data(data),
        config(data.config),
        rng(rng),
        block_index(block_index),
        block_size(block_size),
-       count_remove(count_remove),
-       histo_proposed(add_histo("remove_length_proposed_" + block_name, histos, nbins)),
-       histo_accepted(add_histo("remove_length_accepted_" + block_name, histos, nbins)),
-       hist_insert(hist_insert),
-       hist_remove(hist_remove),
-       meas_wr(wr_remove),
+       histo_proposed(add_histo("remove_length_proposed_" + block_name, histos)),
+       histo_accepted(add_histo("remove_length_accepted_" + block_name, histos)),
        Nmax(100),
-       step_i(time_pt::Nmax / nbins),
-       t1(time_pt(1, config.beta())),
-       use_improved_sampling(hist_insert && hist_remove),
-       wr_remove(wr_remove),
-       pauli_prob(pauli_prob),
-       beta(time_pt(time_pt::Nmax, config.beta())) {
-         bins.reserve(Nmax);
+       pauli_prob(pauli_prob) {
          if (pauli_prob > 0.0) vec_ind.reserve(Nmax);
        }
 
@@ -69,7 +58,7 @@ namespace triqs_cthyb {
     int det_size = det.size();
     if (det_size == 0) return 0; // nothing to remove
     int num_c_dag = -1, num_c = -1;
-    if (!use_improved_sampling) num_c_dag = rng(det_size);
+    num_c_dag = rng(det_size);
     if (pauli_prob == 0.0) num_c = rng(det_size);
 
 #ifdef EXT_DEBUG
@@ -80,51 +69,7 @@ namespace triqs_cthyb {
 
     // now mark 2 nodes for deletion
     if (pauli_prob == 0.0) tau1 = data.imp_trace.try_delete(num_c, block_index, false);
-    double fac = 1.;
-    if (use_improved_sampling) {
-      // choose the creation operator to remove, weighted by probability
-      // hist_remove[bin(tau2-tau1)] / sum_i(hist_remove(bin(tau_i - tau1)))
-      double s = 0;   // normalization constant sum_i(hist_remove(bin(tau_i - tau1)))
-      if (det_size > Nmax) {
-        Nmax *= 2;
-        bins.reserve(Nmax);
-      }
-      bins.resize(det_size);
-      for (int i = 0; i < det_size; ++i) {
-        int ind;
-        // need to call try_delete to get binary tree index
-        time_pt dtau_r = data.imp_trace.try_delete(i, block_index, true) - tau1;
-        ind = floor_div(dtau_r, t1) / step_i;
-        bins[i] = ind;
-        s += (*hist_remove)[ind];
-      }
-
-      data.imp_trace.cancel_delete();
-      if (std::abs(s) == 0.0) return 0; // quick return
-
-      // draw a uniform variable on [0,1]
-      double ran = rng();
-      // choose the creation operator
-      double csum = 0.;
-      for (int i = 0; i < det_size; ++i) {
-        csum += (*hist_remove)[bins[i]] / s;
-        if (csum >= ran || i == (det_size-1)) {
-          num_c_dag = i;
-          break;
-        }
-      }
-
-      tau1 = data.imp_trace.try_delete(num_c, block_index, false);
-      tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
-
-      // compute the probability of proposing the current config from the trial one
-      // this is simply hist_insert[bin(tau2-tau1)]
-      int ibin = bins[num_c_dag];
-      if ((*hist_insert)[ibin] == 0.0) return 0; // quick return
-      fac = s * config.beta() * (*hist_insert)[ibin]  / (double(det_size) * (*hist_remove)[ibin]);
-    }
-    else
-      tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
+    tau2 = data.imp_trace.try_delete(num_c_dag, block_index, true);
 
     mc_weight_t t_ratio = 1.;
 
@@ -175,20 +120,17 @@ namespace triqs_cthyb {
             int ran_pauli = rng(2);
             num_c = (ran_pauli == 0 ? ic_nodagR : ic_nodagL);
           }
-          t_ratio /= double(num_pauli);
-          if (num_pauli != det_size) t_ratio *= pauli_prob;
+          if (num_pauli == det_size)
+            t_ratio /= double(det_size);
+          else
+            t_ratio *= pauli_prob / double(num_pauli) + (1. - pauli_prob) / double(det_size);
         }
-        else {  // Choose num_c between all the other indices
-          int ran_pauli = rng(det_size - num_pauli);
-
-          int i1 = std::min(ic_nodagL, ic_nodagR);
-          int i2 = std::max(ic_nodagL, ic_nodagR);
-
-          if (ran_pauli < i1) num_c = ran_pauli;
-          if (i1 <= ran_pauli && ran_pauli < i2 - 1) num_c = ran_pauli + 1;
-          if (i2 < ran_pauli + num_pauli) num_c = ran_pauli + num_pauli;
-
-          t_ratio *= (1. - pauli_prob) / double(det_size - num_pauli);
+        else {  // Choose num_c uniformly
+          num_c = rng(det_size);
+          if (num_c == ic_nodagR || num_c == ic_nodagL)
+            t_ratio *= pauli_prob / double(num_pauli) + (1. - pauli_prob) / double(det_size);
+          else
+            t_ratio *= (1. - pauli_prob) / double(det_size);
         }
       }
       else {
@@ -250,15 +192,15 @@ namespace triqs_cthyb {
 
             if (tR == tR_dag) {
               if ((tau2 - tau1) < (tau2 - tR))
-                t_ratio *= double(tau2 - tR) / pauli_prob;
+                t_ratio /= pauli_prob / double(tau2 - tR) + (1. - pauli_prob) / (block_size * config.beta());
               else
-                t_ratio *= block_size * double(beta + tR - tau2) / (1. - pauli_prob);
+                t_ratio *= block_size * config.beta() / (1. - pauli_prob);
             }
             else {
               if ((tau1 - tau2) < (tL - tau2))
-                t_ratio *= double(tL - tau2) / pauli_prob;
+                t_ratio /= pauli_prob / double(tL - tau2) + (1. - pauli_prob) / (block_size * config.beta());
               else
-                t_ratio *= block_size * double(beta + tau2 - tL) / (1. - pauli_prob);
+                t_ratio *= block_size * config.beta() / (1. - pauli_prob);
             }
           }
         }
@@ -273,7 +215,6 @@ namespace triqs_cthyb {
 
     // proposition probability
     if (pauli_prob == 0.0) t_ratio = std::pow(block_size * config.beta() / double(det_size), 2); // Size of the det before the try_delete!
-    if (use_improved_sampling) t_ratio *= fac;
 
     // For quick abandon
     double random_number = rng.preview();
@@ -286,11 +227,6 @@ namespace triqs_cthyb {
 #ifdef EXT_DEBUG
       std::cerr << "atomic_weight == 0" << std::endl;
 #endif
-      if (meas_wr) {
-        int ibin = floor_div(tau2 - tau1, t1) / step_i;
-        (*wr_remove)[ibin] += std::abs(det_ratio * new_atomic_reweighting);
-        (*count_remove)[ibin] ++;
-      }
       return 0;
     }
     auto atomic_weight_ratio = new_atomic_weight / data.atomic_weight;
@@ -299,12 +235,6 @@ namespace triqs_cthyb {
                           << new_atomic_weight / data.atomic_weight << " in config " << config.get_id();
 
     mc_weight_t p = atomic_weight_ratio * det_ratio;
-
-    if (meas_wr) {
-      int ibin = floor_div(tau2 - tau1, t1) / step_i;
-      (*wr_remove)[ibin] += std::abs(p);
-      (*count_remove)[ibin] ++;
-    }
 
 #ifdef EXT_DEBUG
     std::cerr << "Trace ratio: " << atomic_weight_ratio << '\t';

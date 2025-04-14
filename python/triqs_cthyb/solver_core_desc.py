@@ -235,13 +235,7 @@ c.add_member(c_name = "solve_parameters",
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | performance_analysis          | bool                                                     | false                         | Analyse performance of trace computation with histograms (developers only)?                                       |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
-| measure_weight_ratio          | bool                                                     | false                         | Measure the weight ratios for each time bin                                                                       |
-+-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | proposal_prob                 | dict(str:float)                                          | {}                            | Operator insertion/removal probabilities for different blocks                                                     |
-+-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
-| nbins_histo                   | int                                                      | 100                           | Number of bins for the histograms                                                                                 |
-+-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
-| hist                          | dict(dict(list(double)))                                 | {}                            | Proposal distribution for each move                                                                               |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
 | move_global                   | dict(str : dict(indices : indices))                      | {}                            | List of global moves (with their names). Each move is specified with an index substitution dictionary.            |
 +-------------------------------+----------------------------------------------------------+-------------------------------+-------------------------------------------------------------------------------------------------------------------+
@@ -310,10 +304,6 @@ c.add_property(name = "h_loc_diagonalization",
 c.add_property(name = "performance_analysis",
                getter = cfunction("triqs_cthyb::histo_map_t get_performance_analysis ()"),
                doc = r"""Histograms related to the performance analysis.""")
-
-c.add_property(name = "weight_ratio",
-               getter = cfunction("std::map<std::string, triqs_cthyb::weight_ratio_map_t> get_weight_ratio ()"),
-               doc = r"""Binned weight ratios""")
 
 c.add_property(name = "average_sign",
                getter = cfunction("triqs_cthyb::mc_weight_t average_sign ()"),
@@ -578,28 +568,11 @@ c.add_member(c_name = "performance_analysis",
              initializer = """ false """,
              doc = r"""Analyse performance of trace computation with histograms (developers only)?""")
 
-c.add_member(c_name = "measure_weight_ratio",
-             c_type = "bool",
-             initializer = """ false """,
-             doc = r"""Measure the weight ratios for each time bin""")
-
 c.add_member(c_name = "proposal_prob",
              c_type = "std::map<std::string, double>",
              initializer = """ {} """,
              doc = r"""Operator insertion/removal probabilities for different blocks
      type: dict(str:float)
-     default: {}""")
-
-c.add_member(c_name = "nbins_histo",
-             c_type = "int",
-             initializer = """ 100 """,
-             doc = r"""Number of bins in the histograms""")
-
-c.add_member(c_name = "hist",
-             c_type = "std::map<std::string, std::map<std::string, std::vector<double>>>",
-             initializer = """ {} """,
-             doc = r"""Proposal distribution for each move
-     type: dict(dict(list(double)))
      default: {}""")
 
 c.add_member(c_name = "move_global",

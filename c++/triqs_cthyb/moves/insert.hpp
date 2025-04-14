@@ -31,30 +31,20 @@ namespace triqs_cthyb {
     configuration &config;
     mc_tools::random_generator &rng;
     int block_index, block_size;
-    std::vector<int> *count_insert;
     histogram *histo_proposed, *histo_accepted; // Analysis histograms
     double dtau;
     h_scalar_t new_atomic_weight, new_atomic_reweighting;
     time_pt tau1, tau2;
     op_desc op1, op2;
-    const std::vector<double> *hist_insert, *hist_remove;
-    bool meas_wr;
-    const double step_d;
-    const uint64_t step_i;
-    const time_pt t1;
-    bool use_improved_sampling;
-    std::vector<double> *wr_insert;
     double pauli_prob;
     int Nmax;
     std::vector<int> vec_ind;
-    time_pt beta;
 
-    histogram *add_histo(std::string const &name, histo_map_t *histos, int nbins);
+    histogram *add_histo(std::string const &name, histo_map_t *histos);
 
     public:
     move_insert_c_cdag(int block_index, int block_size, std::string const &block_name, qmc_data &data, mc_tools::random_generator &rng,
-                       histo_map_t *histos, int nbins, std::vector<double> const *hist_insert, std::vector<double> const *hist_remove,
-		       std::vector<double> *wr_insert, std::vector<int> *count_insert, double pauli_prob);
+                       histo_map_t *histos, double pauli_prob);
 
     mc_weight_t attempt();
     mc_weight_t accept();
