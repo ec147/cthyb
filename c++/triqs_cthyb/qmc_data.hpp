@@ -80,6 +80,7 @@ namespace triqs_cthyb {
          old_sign(1) {
       std::tie(atomic_weight, atomic_reweighting) = imp_trace.compute();
       dets.clear();
+      dets.reserve(delta.size());
       for (auto const &bl : range(delta.size())) {
 #ifdef HYBRIDISATION_IS_COMPLEX
         dets.emplace_back(delta_block_adaptor(delta[bl]), p.det_init_size);
