@@ -61,7 +61,7 @@ namespace triqs_cthyb {
   };
 
   solver_core::solver_core(constr_parameters_t const &p)
-     : beta(p.beta), gf_struct(p.gf_struct), n_iw(p.n_iw), n_tau(p.n_tau), n_l(p.n_l), delta_interface(p.delta_interface), constr_parameters(p) {
+     : beta(p.beta), gf_struct(p.gf_struct), n_iw(p.n_iw), n_tau(p.n_tau), n_l(p.n_l), delta_interface(p.delta_interface), _configuration(p.beta), constr_parameters(p) {
 
     if (p.n_tau < 2 * p.n_iw)
       TRIQS_RUNTIME_ERROR
@@ -158,7 +158,7 @@ namespace triqs_cthyb {
 
       // ==== Compute h_loc ====
 
-      _h_loc0 = {}; 
+      _h_loc0 = {};
 
       // Add non-interacting terms to h_loc
       for (auto bl : range(gf_struct.size())) {
@@ -262,7 +262,7 @@ namespace triqs_cthyb {
     }
 
     // Initialise Monte Carlo quantities
-    qmc_data data(beta, params, h_diag, linindex, _Delta_tau, n_inner, histo_map);
+    qmc_data data(beta, params, h_diag, linindex, _Delta_tau, n_inner, histo_map, _configuration);
     auto qmc =
        mc_tools::mc_generic<mc_weight_t>(params.random_name, params.random_seed, params.verbosity);
 
@@ -286,9 +286,9 @@ namespace triqs_cthyb {
       int block_size         = _Delta_tau[block].data().shape()[1];
       auto const &block_name = delta_names[block];
       double prop_prob       = get_prob_prop(block_name);
-      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map),
+      inserts.add(move_insert_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.pauli_prob),
                   "Insert Delta_" + block_name, prop_prob);
-      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map),
+      removes.add(move_remove_c_cdag(block, block_size, block_name, data, qmc.get_rng(), histo_map, params.pauli_prob),
                   "Remove Delta_" + block_name, prop_prob);
       if (params.move_double) {
         for (size_t block2 = 0; block2 < _Delta_tau.size(); ++block2) {
@@ -420,7 +420,7 @@ namespace triqs_cthyb {
     if (params.measure_density_matrix) {
       if (!params.use_norm_as_weight)
         TRIQS_RUNTIME_ERROR << "To measure the density_matrix of atomic states, you need to set "
-                               "use_norm_as_weight to True, i.e. to reweight the QMC";
+                              "use_norm_as_weight to True, i.e. to reweight the QMC";
       qmc.add_measure(measure_density_matrix{data, _density_matrix},
                       "Density Matrix for local static observable");
     }
@@ -431,10 +431,17 @@ namespace triqs_cthyb {
 
     // --------------------------------------------------------------------------
 
+    mc_weight_t sign = data.current_sign * data.atomic_weight / std::abs(data.atomic_weight);
+
+    for (size_t block = 0; block < _Delta_tau.size(); ++block) {
+      auto det = data.dets[block].determinant();
+      sign *= det / std::abs(det);
+    }
+
     // Run! The empty (starting) configuration has sign = 1
     _solve_status =
        qmc.warmup_and_accumulate(params.n_warmup_cycles, params.n_cycles, params.length_cycle,
-                                 triqs::utility::clock_callback(params.max_time));
+                                 triqs::utility::clock_callback(params.max_time), sign);
     qmc.collect_results(_comm);
 
     if (params.verbosity >= 2) {

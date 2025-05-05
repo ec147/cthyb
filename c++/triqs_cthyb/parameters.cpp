@@ -126,6 +126,7 @@ namespace triqs_cthyb {
 
     h5_write(grp, "measure_pert_order", sp.measure_pert_order);
     h5_write(grp, "measure_density_matrix", sp.measure_density_matrix);
+    h5_write(grp, "time_invariance", sp.time_invariance);
     h5_write(grp, "use_norm_as_weight", sp.use_norm_as_weight);
     h5_write(grp, "performance_analysis", sp.performance_analysis);
     h5_write(grp, "proposal_prob", sp.proposal_prob);
@@ -134,6 +135,8 @@ namespace triqs_cthyb {
     if( sp.move_global.size() != 0 )
       TRIQS_RUNTIME_ERROR << "Error serailizing: CTHYB solve_parameters, can not serialize the global moves data type.";
     h5_write(grp, "move_global_prob", sp.move_global_prob);
+
+    h5_write(grp, "pauli_prob", sp.pauli_prob);
 
     h5_write(grp, "imag_threshold", sp.imag_threshold);
     h5_write(grp, "off_diag_threshold", sp.off_diag_threshold);
@@ -193,6 +196,7 @@ namespace triqs_cthyb {
 
     h5_read(grp, "measure_pert_order", sp.measure_pert_order);
     h5_read(grp, "measure_density_matrix", sp.measure_density_matrix);
+    h5_read(grp, "time_invariance", sp.time_invariance);
     h5_read(grp, "use_norm_as_weight", sp.use_norm_as_weight);
     h5_read(grp, "performance_analysis", sp.performance_analysis);
     h5_read(grp, "proposal_prob", sp.proposal_prob);
@@ -201,6 +205,8 @@ namespace triqs_cthyb {
     if( grp.has_key("move_global") )
       TRIQS_RUNTIME_ERROR << "Error reading: CTHYB solve_parameters, can not de-serialize the global moves data type.";
     h5_read(grp, "move_global_prob", sp.move_global_prob);
+
+    h5_read(grp, "pauli_prob", sp.pauli_prob);
 
     h5_read(grp, "imag_threshold", sp.imag_threshold);
     h5::try_read(grp, "off_diag_threshold", sp.off_diag_threshold);

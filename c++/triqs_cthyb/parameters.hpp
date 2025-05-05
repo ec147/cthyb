@@ -25,6 +25,7 @@
 
 #include "./config.hpp"
 #include "./types.hpp"
+#include "./configuration.hpp"
 
 namespace triqs_cthyb {
 
@@ -190,8 +191,14 @@ namespace triqs_cthyb {
     /// Measure the reduced impurity density matrix?
     bool measure_density_matrix = false;
 
+    /// Use time invariance for the measurement of the density matrix?
+    bool time_invariance = false;
+
     /// Use the norm of the density matrix in the weight if true, otherwise use Trace
     bool use_norm_as_weight = false;
+
+    /// Initial configuration of the run
+    configuration initial_configuration;
 
     /// Analyse performance of trace computation with histograms (developers only)?
     bool performance_analysis = false;
@@ -209,6 +216,9 @@ namespace triqs_cthyb {
 
     /// Overall probability of the global moves
     double move_global_prob = 0.05;
+
+    /// Overall proposal probability for Pauli-aware insert and remove
+    double pauli_prob = 0.;
 
     /// Threshold below which imaginary components of Delta and h_loc are set to zero
     double imag_threshold = 1.e-13;
