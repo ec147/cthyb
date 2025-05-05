@@ -3,7 +3,7 @@
  *
  * TRIQS: a Toolbox for Research in Interacting Quantum Systems
  *
- * Copyright (C) 2014-2017, H. U.R. Strand, P. Seth, I. Krivenko, 
+ * Copyright (C) 2014-2017, H. U.R. Strand, P. Seth, I. Krivenko,
  *                          M. Ferrero and O. Parcollet
  *
  * TRIQS is free software: you can redistribute it and/or modify it under the
@@ -32,6 +32,7 @@
 #include "types.hpp"
 #include "container_set.hpp"
 #include "parameters.hpp"
+#include "configuration.hpp"
 
 namespace triqs_cthyb {
 
@@ -53,6 +54,7 @@ namespace triqs_cthyb {
     double _average_order;                 // average perturbation order
     double _auto_corr_time;                // Auto-correlation time
     int _solve_status;                     // Status of the solve upon exit: 0 for clean termination, > 0 otherwise.
+    configuration _configuration;          // Final configuration of the run
 
     // Single-particle Green's function containers
     std::optional<G_iw_t> _G0_iw; // Non-interacting Matsubara Green's function
@@ -62,7 +64,7 @@ namespace triqs_cthyb {
     // Return reference to container_set
     container_set_t &container_set() { return static_cast<container_set_t &>(*this); }
     container_set_t const &container_set() const { return static_cast<container_set_t const &>(*this); }
- 
+
     public:
 
     // Struct containing the parameters relevant for the solver construction
@@ -119,7 +121,7 @@ namespace triqs_cthyb {
     void set_container_set(container_set_t &cs) { static_cast<container_set_t &>(*this) = cs; }
     container_set_t last_container_set() { return static_cast<container_set_t>(*this); }
     */
-    
+
     /// :math:`\Delta(\tau)` in imaginary time.
     block_gf_view<imtime> Delta_tau() { return _Delta_tau; }
 
@@ -152,6 +154,9 @@ namespace triqs_cthyb {
 
     /// Status of the ``solve()`` on exit.
     int solve_status() const { return _solve_status; }
+
+    /// Configuration
+    configuration const &get_configuration() const { return _configuration; }
 
     /// is cthyb compiled with support for complex hybridization?
     bool hybridisation_is_complex() const {
